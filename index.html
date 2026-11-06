@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b1026">
+<title>Yoni's Apps</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='6' width='24' height='24' rx='7' fill='%237c6cff'/%3E%3Crect x='34' y='6' width='24' height='24' rx='7' fill='%234fd1c5'/%3E%3Crect x='6' y='34' width='24' height='24' rx='7' fill='%234fd1c5'/%3E%3Crect x='34' y='34' width='24' height='24' rx='7' fill='%237c6cff' opacity='.5'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg-1: #0b1026; --bg-2: #1e1b4b;
+    --surface: rgba(255,255,255,0.06); --border: rgba(255,255,255,0.12);
+    --text: #eceaff; --muted: #a6a3c9; --faint: #6f6c99;
+    --accent: #7c6cff; --accent-2: #4fd1c5;
+    --font: "Rubik", "Assistant", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; font-family: var(--font); color: var(--text);
+    background: radial-gradient(1200px 700px at 85% -10%, rgba(124,108,255,0.22), transparent 60%),
+                linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    background-color: var(--bg-1); background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 16px 48px; }
+  h1 { font-size: clamp(1.8rem, 6vw, 2.4rem); margin: 0 0 8px; font-weight: 600; }
+  .lede { color: var(--muted); margin: 0 0 36px; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .app {
+    display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 24px;
+    background: var(--surface); border: 1px solid var(--border); color: inherit; text-decoration: none;
+    box-shadow: 0 10px 30px rgba(3,4,20,0.35);
+    transition: transform 0.2s ease, border-color 0.2s, background 0.2s;
+  }
+  .app:hover { transform: translateY(-3px); border-color: rgba(124,108,255,0.55); background: rgba(255,255,255,0.09); }
+  .app:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+  .app h2 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+  .app p { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+  .app .go { margin-top: auto; color: var(--accent-2); font-size: 0.88rem; font-weight: 500; }
+  .icon { width: 44px; height: 44px; position: relative; }
+  .icon.memory::before, .icon.memory::after { content: ""; position: absolute; width: 26px; height: 32px; border-radius: 8px; }
+  .icon.memory::before { left: 4px; top: 9px; background: var(--accent-2); }
+  .icon.memory::after { left: 14px; top: 2px; background: var(--accent); box-shadow: -2px 2px 8px rgba(0,0,0,0.35); }
+  .soon { border-style: dashed; box-shadow: none; pointer-events: none; }
+  .soon h2 { color: var(--faint); }
+  footer { margin-top: 48px; color: var(--faint); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Yoni's Apps</h1>
+  <p class="lede">Small tools I built for myself. Everything runs in the browser and works offline.</p>
+
+  <div class="grid">
+    <!-- To add an app: create /<app-name>/index.html and copy this card. -->
+    <a class="app" href="daily-memory/index.html">
+      <div class="icon memory" aria-hidden="true"></div>
+      <h2>Daily Memory</h2>
+      <p>Flip cards with spaced repetition for words, terms and ideas, in Hebrew and English.</p>
+      <span class="go">Open &rarr;</span>
+    </a>
+
+    <div class="app soon" aria-hidden="true">
+      <h2>More soon</h2>
+      <p>The next app goes here.</p>
+    </div>
+  </div>
+
+  <footer>Data stays in your browser. Nothing is sent anywhere.</footer>
+</main>
+</body>
+</html>

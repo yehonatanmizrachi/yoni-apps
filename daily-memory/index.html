@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b1026">
+<title>Daily Memory</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='8' y='12' width='40' height='44' rx='9' fill='%234fd1c5'/%3E%3Crect x='16' y='6' width='40' height='44' rx='9' fill='%237c6cff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg-1: #0b1026;
+    --bg-2: #1e1b4b;
+    --surface: rgba(255, 255, 255, 0.06);
+    --surface-2: rgba(255, 255, 255, 0.1);
+    --border: rgba(255, 255, 255, 0.12);
+    --text: #eceaff;
+    --muted: #a6a3c9;
+    --faint: #6f6c99;
+    --accent: #7c6cff;
+    --accent-2: #4fd1c5;
+    --red: #ff6b81;
+    --amber: #ffb547;
+    --green: #3ddc97;
+    --radius: 24px;
+    --shadow: 0 18px 50px rgba(3, 4, 20, 0.55), 0 2px 8px rgba(3, 4, 20, 0.35);
+    --font: "Rubik", "Assistant", system-ui, -apple-system, "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: var(--font);
+    color: var(--text);
+    background: radial-gradient(1200px 700px at 85% -10%, rgba(124, 108, 255, 0.22), transparent 60%),
+                radial-gradient(900px 600px at -10% 110%, rgba(79, 209, 197, 0.12), transparent 60%),
+                linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    background-color: var(--bg-1);
+    background-attachment: fixed;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+  .app {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: max(16px, env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+  }
+
+  /* ---------- Header ---------- */
+  header.top {
+    display: flex; align-items: center; gap: 12px;
+    padding: 4px 0 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand a.home { color: var(--faint); text-decoration: none; font-size: 0.85rem; padding: 6px 4px; border-radius: 8px; }
+  .brand a.home:hover { color: var(--muted); }
+  .logo {
+    width: 34px; height: 34px; flex: none; position: relative;
+  }
+  .logo::before, .logo::after {
+    content: ""; position: absolute; width: 22px; height: 26px; border-radius: 7px;
+  }
+  .logo::before { left: 2px; top: 6px; background: var(--accent-2); }
+  .logo::after { left: 10px; top: 1px; background: var(--accent); box-shadow: -2px 2px 6px rgba(0,0,0,0.35); }
+  h1 { font-size: 1.15rem; margin: 0; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
+  .counts { color: var(--muted); font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .counts b { color: var(--accent-2); font-weight: 600; }
+  .spacer { flex: 1; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--surface); display: grid; place-items: center; flex: none;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .icon-btn:hover { background: var(--surface-2); }
+  .icon-btn:active { transform: scale(0.95); }
+  .icon-btn svg { width: 20px; height: 20px; }
+
+  /* ---------- Nav ---------- */
+  nav.tabs {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    padding: 4px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  nav.tabs a {
+    text-align: center; padding: 10px 8px; border-radius: 12px; color: var(--muted);
+    text-decoration: none; font-weight: 500; font-size: 0.95rem;
+    transition: background 0.25s, color 0.25s;
+  }
+  nav.tabs a:hover { color: var(--text); }
+  nav.tabs a[aria-current="page"] { background: linear-gradient(135deg, var(--accent), #6a5cf0); color: #fff; box-shadow: 0 4px 14px rgba(124, 108, 255, 0.35); }
+
+  /* ---------- Banners ---------- */
+  .banner {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 16px;
+    border-radius: 16px; background: rgba(79, 209, 197, 0.1); border: 1px solid rgba(79, 209, 197, 0.3);
+    font-size: 0.9rem; color: var(--text); animation: fade 0.4s ease;
+  }
+  .banner.warn { background: rgba(255, 107, 129, 0.1); border-color: rgba(255, 107, 129, 0.35); }
+  .banner p { margin: 0; flex: 1; }
+  .banner .btn { padding: 7px 12px; font-size: 0.85rem; }
+  .banner .x { background: none; border: 0; color: var(--muted); padding: 4px 6px; font-size: 1.1rem; line-height: 1; }
+
+  /* ---------- Views ---------- */
+  .view { display: none; }
+  .view.active { display: block; animation: fade 0.35s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    border: 1px solid var(--border); background: var(--surface-2); padding: 11px 18px; border-radius: 14px;
+    font-weight: 500; transition: background 0.2s, transform 0.1s, border-color 0.2s, opacity 0.2s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    color: var(--text); text-decoration: none;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.15); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #6a5cf0); border-color: transparent; color: #fff; box-shadow: 0 6px 18px rgba(124, 108, 255, 0.35); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { background: transparent; }
+  .btn.danger { color: var(--red); border-color: rgba(255, 107, 129, 0.4); background: rgba(255, 107, 129, 0.08); }
+  .btn.danger:hover { background: rgba(255, 107, 129, 0.16); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* ---------- Review ---------- */
+  .progress { height: 6px; border-radius: 99px; background: var(--surface); overflow: hidden; margin-bottom: 8px; }
+  .progress > i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.5s cubic-bezier(.2,.8,.2,1); }
+  .progress-label { display: flex; justify-content: space-between; color: var(--faint); font-size: 0.8rem; margin-bottom: 16px; font-variant-numeric: tabular-nums; }
+
+  .stage { perspective: 1600px; }
+  .card {
+    position: relative; height: clamp(320px, 54vh, 470px); cursor: pointer; border-radius: var(--radius);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    user-select: none; -webkit-user-select: none;
+  }
+  .card.leaving { opacity: 0; transform: translateX(-28px) scale(0.98); }
+  .card.entering { animation: enter 0.35s cubic-bezier(.2,.8,.2,1); }
+  @keyframes enter { from { opacity: 0; transform: translateX(28px) scale(0.98); } to { opacity: 1; transform: none; } }
+  .card-inner {
+    position: absolute; inset: 0; transform-style: preserve-3d;
+    transition: transform 0.65s cubic-bezier(.3,.9,.3,1);
+  }
+  .card.flipped .card-inner { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; border-radius: var(--radius);
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+    display: flex; flex-direction: column;
+    padding: 28px 26px;
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent;
+  }
+  .face.front {
+    background: linear-gradient(150deg, rgba(124, 108, 255, 0.28), rgba(124, 108, 255, 0.08) 55%, rgba(79, 209, 197, 0.1)), #161a3d;
+  }
+  .face.back {
+    transform: rotateY(180deg);
+    background: linear-gradient(150deg, rgba(79, 209, 197, 0.14), rgba(30, 27, 75, 0.4) 60%), #141836;
+  }
+  /* margin:auto centers when short, and lets long content scroll from the top */
+  .face > .inner { margin: auto 0; width: 100%; }
+  .face.front > .inner { text-align: center; }
+  .term {
+    font-weight: 600; line-height: 1.2; margin: 0;
+    overflow-wrap: anywhere; word-break: normal; hyphens: auto;
+    unicode-bidi: plaintext;
+  }
+  .term.s1 { font-size: clamp(2.1rem, 7vw, 2.9rem); }
+  .term.s2 { font-size: clamp(1.7rem, 5.5vw, 2.2rem); }
+  .term.s3 { font-size: clamp(1.35rem, 4.4vw, 1.7rem); }
+  .term.s4 { font-size: 1.15rem; line-height: 1.45; }
+  .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: var(--faint); font-size: 0.8rem; pointer-events: none; }
+  .face.front .tags { justify-content: center; margin-top: 16px; }
+
+  .back-term { color: var(--accent-2); font-weight: 600; font-size: 1.05rem; margin: 0 0 14px; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+  .field { margin: 0 0 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .label { display: block; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin-bottom: 4px; font-weight: 500; }
+  .value { margin: 0; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; unicode-bidi: plaintext; text-align: start; }
+  .value.meaning { font-size: 1.2rem; }
+  .value.example { font-style: italic; color: #d6d3f5; }
+  .value.origin { color: var(--muted); font-size: 0.95rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Category pill: hue is derived from the name (set via --h) */
+  .cat {
+    --h: 250;
+    display: inline-block; max-width: 100%; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.02em;
+    padding: 3px 10px; border-radius: 99px; overflow-wrap: anywhere;
+    color: hsl(var(--h) 90% 80%); background: hsl(var(--h) 70% 60% / 0.16); border: 1px solid hsl(var(--h) 70% 65% / 0.4);
+  }
+  .face.front.has-cat { padding-top: 54px; }
+  .face.front .cat { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 40px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Filter chip rows (Review and Library) */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chips button { font-size: 0.8rem; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); transition: background 0.2s, color 0.2s, border-color 0.2s; }
+  .chips button:hover { color: var(--text); }
+  .chips button[aria-pressed="true"] { background: rgba(124,108,255,0.22); color: #d5cfff; border-color: rgba(124,108,255,0.6); }
+  .chips button .n { opacity: 0.6; margin-inline-start: 5px; font-variant-numeric: tabular-nums; }
+  .chips.small { margin: 6px 0 0; }
+  .chips.small button { font-size: 0.75rem; padding: 3px 9px; }
+
+  details.more { margin-top: 2px; }
+  details > summary { list-style: none; cursor: pointer; user-select: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details.more > summary { color: var(--muted); font-size: 0.85rem; padding: 6px 0; }
+  details.more > summary::before { content: "+ "; color: var(--accent-2); }
+  details.more[open] > summary::before { content: "− "; }
+  details.more > .form-grid { margin-top: 8px; }
+  details.paste > summary { font-weight: 600; font-size: 1.05rem; color: var(--text); padding: 0; }
+  details.paste > summary::before { content: "▸ "; color: var(--accent-2); }
+  details.paste[open] > summary::before { content: "▾ "; }
+  details.paste[open] > summary { margin-bottom: 10px; }
+  .tag { font-size: 0.75rem; padding: 3px 9px; border-radius: 99px; background: rgba(79, 209, 197, 0.12); color: var(--accent-2); border: 1px solid rgba(79, 209, 197, 0.25); overflow-wrap: anywhere; }
+
+  .ratings {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .ratings.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; visibility: hidden; }
+  .rate {
+    border-radius: 16px; padding: 12px 6px 10px; border: 1px solid; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-weight: 600; transition: transform 0.1s, filter 0.2s, background 0.2s;
+  }
+  .rate:active { transform: scale(0.96); }
+  .rate small { font-weight: 400; font-size: 0.78rem; opacity: 0.85; font-variant-numeric: tabular-nums; }
+  .rate kbd { font-family: inherit; font-size: 0.65rem; opacity: 0.55; font-weight: 400; }
+  .rate.forgot { color: var(--red); border-color: rgba(255,107,129,0.45); background: rgba(255,107,129,0.1); }
+  .rate.hard { color: var(--amber); border-color: rgba(255,181,71,0.45); background: rgba(255,181,71,0.1); }
+  .rate.easy { color: var(--green); border-color: rgba(61,220,151,0.45); background: rgba(61,220,151,0.1); }
+  .rate:hover { filter: brightness(1.2); }
+  .keys-hint { text-align: center; color: var(--faint); font-size: 0.75rem; margin-top: 14px; }
+  @media (hover: none) { .keys-hint, .rate kbd { display: none; } }
+
+  .empty {
+    text-align: center; padding: 56px 24px; border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .empty .big { font-size: 3rem; line-height: 1; margin-bottom: 12px; }
+  .empty h2 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 600; }
+  .empty p { margin: 0 0 22px; color: var(--muted); line-height: 1.5; }
+  .empty.celebrate .big { animation: pop 0.7s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes pop { from { transform: scale(0.3) rotate(-20deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* ---------- Panels / forms ---------- */
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 18px; box-shadow: 0 8px 30px rgba(3,4,20,0.25);
+  }
+  .panel h2 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 600; }
+  .panel .sub { margin: 0 0 14px; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+  textarea, input[type="text"], input[type="search"] {
+    width: 100%; border-radius: 14px; border: 1px solid var(--border); background: rgba(5, 7, 25, 0.45);
+    padding: 12px 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    unicode-bidi: plaintext;
+  }
+  textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,108,255,0.25); }
+  textarea { min-height: 200px; resize: vertical; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88rem; line-height: 1.5; }
+  ::placeholder { color: var(--faint); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .msg { font-size: 0.9rem; margin-top: 12px; padding: 10px 12px; border-radius: 12px; display: none; overflow-wrap: anywhere; }
+  .msg.show { display: block; animation: fade 0.3s ease; }
+  .msg.ok { background: rgba(61,220,151,0.1); color: var(--green); border: 1px solid rgba(61,220,151,0.3); }
+  .msg.err { background: rgba(255,107,129,0.1); color: var(--red); border: 1px solid rgba(255,107,129,0.3); }
+  .form-grid { display: grid; gap: 10px; }
+  .form-grid label { font-size: 0.8rem; color: var(--muted); display: grid; gap: 5px; }
+
+  /* ---------- Library ---------- */
+  .lib-tools { display: flex; gap: 10px; margin-bottom: 12px; }
+  .lib-tools input { flex: 1; }
+  .chips button.rename { border-style: dashed; color: var(--faint); }
+  .lib-meta { color: var(--faint); font-size: 0.8rem; margin: 0 0 10px; }
+  .list { display: grid; gap: 10px; }
+  .item {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: start;
+    padding: 14px 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border);
+    animation: fade 0.3s ease;
+  }
+  .item .t { font-weight: 600; font-size: 1.05rem; overflow-wrap: anywhere; unicode-bidi: plaintext; margin: 0; }
+  .item .m { color: var(--muted); font-size: 0.9rem; line-height: 1.45; overflow-wrap: anywhere; unicode-bidi: plaintext; margin: 4px 0 0;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .item .side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .due { font-size: 0.75rem; padding: 3px 9px; border-radius: 99px; white-space: nowrap; background: var(--surface-2); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .due.now { background: rgba(124,108,255,0.2); color: #c3bbff; }
+  .item .acts { display: flex; gap: 4px; }
+  .mini { width: 32px; height: 32px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--faint); display: grid; place-items: center; transition: background 0.2s, color 0.2s; }
+  .mini:hover { background: var(--surface-2); color: var(--text); }
+  .mini.del:hover { color: var(--red); background: rgba(255,107,129,0.12); }
+  .mini svg { width: 16px; height: 16px; }
+  .item .tags { grid-column: 1 / -1; }
+  .lib-empty { text-align: center; color: var(--muted); padding: 32px 12px; }
+  .lib-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ---------- Dialog ---------- */
+  dialog {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; width: min(92vw, 480px);
+    background: #171b3f; color: var(--text); box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(3, 4, 20, 0.6); backdrop-filter: blur(3px); }
+  dialog[open] { animation: fade 0.25s ease; }
+  dialog h3 { margin: 0 0 8px; font-size: 1.15rem; }
+  dialog .d-body { color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+  dialog .d-body p { margin: 0 0 10px; }
+  dialog .d-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+    background: #232857; border: 1px solid var(--border); padding: 10px 16px; border-radius: 14px; box-shadow: var(--shadow);
+    font-size: 0.9rem; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; max-width: calc(100vw - 32px);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 480px) {
+    .face { padding: 24px 20px; }
+    .counts { font-size: 0.78rem; }
+    h1 { font-size: 1.05rem; }
+    .brand a.home { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <a class="home" href="../index.html" title="All apps">&larr;</a>
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Daily Memory</h1>
+    </div>
+    <div class="spacer"></div>
+    <div class="counts" id="counts" aria-live="polite"></div>
+    <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute sounds" title="Sound on/off"></button>
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    <a href="#review" data-view="review">Review</a>
+    <a href="#add" data-view="add">Add</a>
+    <a href="#library" data-view="library">Library</a>
+  </nav>
+
+  <div id="banners"></div>
+
+  <!-- Review -->
+  <section class="view" id="view-review" aria-label="Review">
+    <div class="chips" id="reviewFilter" role="group" aria-label="Review category"></div>
+    <div id="reviewArea"></div>
+  </section>
+
+  <!-- Add -->
+  <section class="view" id="view-add" aria-label="Add cards">
+    <div class="panel">
+      <h2>Add a card</h2>
+      <p class="sub">Only the term is required. You can fill in the rest later from the Library.</p>
+      <form class="form-grid" id="quickForm" autocomplete="off">
+        <label>Term <input type="text" id="qTerm" dir="auto" required></label>
+        <label>Meaning <textarea id="qMeaning" dir="auto" rows="2" style="min-height:64px;font-family:inherit;font-size:1rem"></textarea></label>
+        <label>Category <input type="text" id="qCategory" dir="auto" list="categoryList" placeholder="e.g. English words"></label>
+        <div class="chips small" id="qCatChips"></div>
+        <details class="more" id="qMore">
+          <summary>Example, origin and tags</summary>
+          <div class="form-grid">
+            <label>Example <input type="text" id="qExample" dir="auto"></label>
+            <label>Origin <input type="text" id="qOrigin" dir="auto" placeholder="Etymology, or where you came across it"></label>
+            <label>Tags <input type="text" id="qTags" dir="auto" placeholder="Comma separated"></label>
+          </div>
+        </details>
+        <div class="row" style="margin-top:4px"><button class="btn primary" type="submit">Add card</button></div>
+      </form>
+      <div class="msg" id="quickMsg" role="status"></div>
+    </div>
+
+    <details class="panel paste" id="pastePanel">
+      <summary>Paste cards from Claude</summary>
+      <p class="sub">Paste one card, a list of cards, or a full backup. Only <code>term</code> is required.</p>
+      <textarea id="importText" spellcheck="false" aria-label="Card JSON"></textarea>
+      <div class="row">
+        <button class="btn primary" id="addJsonBtn" type="button">Add cards</button>
+        <button class="btn ghost" id="copyPromptBtn" type="button" title="Copy instructions you can paste into a Claude chat">Copy prompt for Claude</button>
+      </div>
+      <div class="msg" id="importMsg" role="status"></div>
+    </details>
+    <datalist id="categoryList"></datalist>
+  </section>
+
+  <!-- Library -->
+  <section class="view" id="view-library" aria-label="Library">
+    <div class="lib-tools">
+      <input type="search" id="search" placeholder="Search terms and meanings" dir="auto" aria-label="Search">
+    </div>
+    <div class="chips" id="catFilter" role="group" aria-label="Filter by category"></div>
+    <p class="lib-meta" id="libMeta"></p>
+    <div class="list" id="list"></div>
+    <div class="panel" style="margin-top:20px">
+      <h2>Backup</h2>
+      <p class="sub" id="backupSub">Your cards live in this browser only. Export a backup now and then.</p>
+      <div class="lib-actions">
+        <button class="btn primary" id="exportBtn" type="button">Export</button>
+        <button class="btn" id="restoreBtn" type="button">Restore&hellip;</button>
+        <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog id="dialog"><h3 id="dTitle"></h3><div class="d-body" id="dBody"></div><div class="d-actions" id="dActions"></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* =========================================================
+     Constants & tiny helpers
+     ========================================================= */
+  const STORE_KEY = "dailyMemory.v1";
+  const MUTE_KEY = "dailyMemory.muted";
+  const EXPORT_KEY = "dailyMemory.lastExport";
+  const DAY = 86400000;
+  const MIN_EASE = 1.3, START_EASE = 2.5;
+
+  const $ = (sel) => document.querySelector(sel);
+
+  /** Build an element. User content only ever goes in via textContent. */
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (v == null || v === false) continue;
+      if (k === "class") node.className = v;
+      else if (k === "text") node.textContent = v;
+      else if (k === "html") node.innerHTML = v; // only ever used with static strings
+      else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of children.flat()) if (c != null && c !== false) node.append(c);
+    return node;
+  }
+
+  /** Wrap user text placed inside an English sentence so its direction can't scramble the punctuation. */
+  const iso = (s) => "⁨" + s + "⁩";
+
+  const uid = () =>
+    (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+
+  function todayStart() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  /** Local midnight `n` days after `ms` (calendar-safe across DST). */
+  function addDays(ms, n) { const d = new Date(ms); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime(); }
+  function daysFromToday(ms) { return Math.round((addDays(ms, 0) - todayStart()) / DAY); }
+  function isDue(card) { return card.due <= todayStart(); }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+  }
+
+  function lsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+  function lsSet(key, val) { try { localStorage.setItem(key, val); return true; } catch { return false; } }
+
+  /* =========================================================
+     Validation / normalisation
+     ========================================================= */
+  const str = (v) => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
+
+  function normTags(v) {
+    let list = [];
+    if (Array.isArray(v)) list = v.map(str);
+    else if (typeof v === "string") list = v.split(",").map((s) => s.trim());
+    return [...new Set(list.filter(Boolean))];
+  }
+
+  const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+  const isIso = (v) => typeof v === "string" && !Number.isNaN(Date.parse(v));
+
+  /**
+   * Turn any raw object into a valid stored card, or null.
+   * Scheduling fields are kept when valid (so backups round-trip exactly),
+   * otherwise the card starts fresh and is due today.
+   */
+  function normalizeCard(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const term = str(raw.term);
+    if (!term) return null;
+    const now = new Date().toISOString();
+    return {
+      id: typeof raw.id === "string" && raw.id ? raw.id : uid(),
+      term,
+      meaning: str(raw.meaning),
+      example: str(raw.example),
+      origin: str(raw.origin),
+      category: str(raw.category).replace(/\s+/g, " "),
+      tags: normTags(raw.tags),
+      created: isIso(raw.created) ? raw.created : now,
+      due: isNum(raw.due) ? raw.due : todayStart(),
+      interval: isNum(raw.interval) && raw.interval >= 0 ? raw.interval : 0,
+      ease: isNum(raw.ease) && raw.ease >= MIN_EASE ? raw.ease : START_EASE,
+      reviews: isNum(raw.reviews) && raw.reviews >= 0 ? raw.reviews : 0,
+      lapses: isNum(raw.lapses) && raw.lapses >= 0 ? raw.lapses : 0,
+      lastReviewed: isIso(raw.lastReviewed) ? raw.lastReviewed : null,
+    };
+  }
+
+  /** Remove ```json fences or surrounding chat text, then parse. */
+  function parseLoose(text) {
+    let t = String(text || "").trim();
+    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) t = fence[1].trim();
+    try { return JSON.parse(t); } catch (e) {
+      // Fall back to the outermost [...] or {...} in the text
+      const first = t.search(/[\[{]/);
+      const last = Math.max(t.lastIndexOf("]"), t.lastIndexOf("}"));
+      if (first >= 0 && last > first) {
+        try { return JSON.parse(t.slice(first, last + 1)); } catch { /* fall through */ }
+      }
+      throw e;
+    }
+  }
+
+  /** Accept an object, an array, or { cards: [...] }. Returns { cards, skipped, isBackup }. */
+  function extractCards(data) {
+    let list, isBackup = false;
+    if (Array.isArray(data)) list = data;
+    else if (data && typeof data === "object" && Array.isArray(data.cards)) { list = data.cards; isBackup = true; }
+    else if (data && typeof data === "object") list = [data];
+    else throw new Error("Expected a card object, an array of cards, or { \"cards\": [...] }.");
+    const cards = [], seen = new Set();
+    let skipped = 0;
+    for (const raw of list) {
+      const c = normalizeCard(raw);
+      if (!c || seen.has(c.id)) { skipped++; continue; }
+      seen.add(c.id); cards.push(c);
+    }
+    return { cards, skipped, total: list.length, isBackup };
+  }
+
+  /* =========================================================
+     Store
+     ========================================================= */
+  let cards = [];
+  let storageOk = true;
+  let loadProblem = null;
+
+  function load() {
+    const raw = lsGet(STORE_KEY);
+    if (raw == null) { cards = []; return; }
+    try {
+      const data = JSON.parse(raw);
+      cards = extractCards(data).cards;
+    } catch {
+      // Never wipe: keep the unreadable copy aside and start empty in memory.
+      lsSet(STORE_KEY + ".corrupt-" + Date.now(), raw);
+      loadProblem = "Saved data couldn't be read. A copy was kept aside in this browser; restore a backup to continue.";
+      cards = [];
+    }
+  }
+
+  /* ---------- Categories ---------- */
+  const UNCATEGORIZED = "\u0000none"; // filter value for cards without a category
+
+  /** Existing categories, most used first. Matching ignores case. */
+  function allCategories() {
+    const counts = new Map();
+    for (const c of cards) if (c.category) counts.set(c.category, (counts.get(c.category) || 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+  }
+
+  /** Reuse the spelling of an existing category ("english words" → "English words"). */
+  function canonicalCategory(name) {
+    const n = str(name).replace(/\s+/g, " ");
+    if (!n) return "";
+    return allCategories().find((c) => c.toLowerCase() === n.toLowerCase()) || n;
+  }
+
+  const inCategory = (card, cat) => !cat || (cat === UNCATEGORIZED ? !card.category : card.category === cat);
+
+  function catHue(name) {
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.codePointAt(0)) % 360;
+    return (h + 200) % 360;
+  }
+
+  function catPill(name) {
+    return name ? el("span", { class: "cat", dir: "auto", style: `--h:${catHue(name)}`, text: name }) : null;
+  }
+
+  /** Chip row: All · each category (with count) · Uncategorized (only if some cards have none). */
+  function categoryChips(container, selected, counts, onPick) {
+    const cats = allCategories();
+    if (!cats.length) { container.replaceChildren(); container.hidden = true; return; }
+    container.hidden = false;
+    const chip = (value, label, n) => el("button", {
+      type: "button", dir: "auto", "aria-pressed": String(selected === value),
+      onclick: () => onPick(selected === value ? null : value),
+    }, label, n != null ? el("span", { class: "n", text: String(n) }) : null);
+    const none = cards.filter((c) => !c.category);
+    const buttons = [
+      chip(null, "All", counts ? counts(null) : null),
+      ...cats.map((c) => chip(c, c, counts ? counts(c) : null)),
+    ];
+    if (none.length) buttons.push(chip(UNCATEGORIZED, "Uncategorized", counts ? counts(UNCATEGORIZED) : null));
+    container.replaceChildren(...buttons);
+  }
+
+  function renderCategoryList() {
+    $("#categoryList").replaceChildren(...allCategories().map((c) => el("option", { value: c })));
+    const box = $("#qCatChips");
+    const cats = allCategories().slice(0, 12);
+    box.hidden = !cats.length;
+    box.replaceChildren(...cats.map((c) => el("button", {
+      type: "button", dir: "auto", "aria-pressed": String($("#qCategory").value.trim().toLowerCase() === c.toLowerCase()),
+      text: c, onclick: () => {
+        const input = $("#qCategory");
+        input.value = input.value.trim().toLowerCase() === c.toLowerCase() ? "" : c;
+        renderCategoryList();
+      },
+    })));
+  }
+
+  function storeObject() {
+    return { version: 1, exported: new Date().toISOString(), cards };
+  }
+
+  function save() {
+    storageOk = lsSet(STORE_KEY, JSON.stringify(storeObject()));
+    if (!storageOk) renderBanners();
+    renderCounts();
+    renderCategoryList();
+  }
+
+  /* =========================================================
+     Scheduling (simplified SM-2)
+     ========================================================= */
+  const RATINGS = ["forgot", "hard", "easy"];
+
+  function nextState(card, rating) {
+    let { interval, ease, lapses } = card;
+    if (rating === "forgot") {
+      interval = 1; ease = Math.max(MIN_EASE, ease - 0.2); lapses += 1;
+    } else if (rating === "hard") {
+      interval = Math.max(1, Math.round(interval * 1.2)); ease = Math.max(MIN_EASE, ease - 0.15);
+    } else {
+      interval = interval === 0 ? 3 : Math.max(1, Math.round(interval * ease)); ease = ease + 0.1;
+    }
+    ease = Math.round(ease * 100) / 100;
+    return { interval, ease, lapses };
+  }
+
+  function intervalLabel(days) { return days <= 0 ? "today" : days === 1 ? "tomorrow" : days + "d"; }
+
+  /* =========================================================
+     Review session
+     ========================================================= */
+  const session = {
+    day: todayStart(),
+    queue: [],          // card ids, first = current
+    relearn: new Set(), // ids rated Forgot this session (re-shown as practice)
+    doneIds: [],        // cards finished this session
+    celebrated: false,
+    category: null,     // review filter: null = all, a name, or UNCATEGORIZED
+  };
+  const REVIEW_CAT_KEY = "dailyMemory.reviewCategory";
+
+  function resetSession() {
+    session.day = todayStart(); session.queue = []; session.relearn.clear(); session.doneIds = []; session.celebrated = false;
+  }
+
+  /** Queue and progress for the current category filter. */
+  function sessionView() {
+    const match = (id) => { const c = byId(id); return c && inCategory(c, session.category); };
+    const queue = session.queue.filter(match);
+    return { queue, done: session.doneIds.filter(match).length, current: queue.length ? byId(queue[0]) : null };
+  }
+
+  function syncQueue() {
+    if (session.day !== todayStart()) resetSession(); // new day: start fresh
+    if (session.category && session.category !== UNCATEGORIZED && !allCategories().includes(session.category)) session.category = null;
+    const ids = new Set(cards.map((c) => c.id));
+    session.queue = session.queue.filter((id) => ids.has(id));
+    const inQueue = new Set(session.queue);
+    const fresh = shuffle(cards.filter((c) => isDue(c) && !inQueue.has(c.id)).map((c) => c.id));
+    if (fresh.length) {
+      // New due cards go after the remaining ones and before cards re-shown after Forgot.
+      const notRelearn = session.queue.filter((id) => !session.relearn.has(id));
+      const relearn = session.queue.filter((id) => session.relearn.has(id));
+      session.queue = [...notRelearn, ...fresh, ...relearn];
+      session.celebrated = false;
+    }
+  }
+
+  const byId = (id) => cards.find((c) => c.id === id);
+  let flipped = false;
+
+  function rate(rating) {
+    const card = sessionView().current;
+    if (!card || !flipped || busy) return;
+    const id = card.id;
+    const now = new Date().toISOString();
+    sound(rating);
+    session.queue.splice(session.queue.indexOf(id), 1);
+
+    if (session.relearn.has(id)) {
+      // Practice pass of a card already rescheduled today: it stays due tomorrow.
+      card.reviews += 1; card.lastReviewed = now;
+      if (rating === "forgot") session.queue.push(id);
+      else { session.relearn.delete(id); session.doneIds.push(id); }
+    } else {
+      const ns = nextState(card, rating);
+      Object.assign(card, ns, { due: addDays(todayStart(), ns.interval), reviews: card.reviews + 1, lastReviewed: now });
+      if (rating === "forgot") { session.relearn.add(id); session.queue.push(id); }
+      else session.doneIds.push(id);
+    }
+    save();
+    advance();
+  }
+
+  /* =========================================================
+     Rendering: header & banners
+     ========================================================= */
+  function renderCounts() {
+    const due = cards.filter(isDue).length;
+    const c = $("#counts");
+    c.replaceChildren(el("b", { text: String(due) }), ` due · ${cards.length} total`);
+  }
+
+  let exportBannerDismissed = false;
+  function needsExportReminder() {
+    if (!cards.length || exportBannerDismissed) return false;
+    const last = Number(lsGet(EXPORT_KEY));
+    const since = last ? last : Math.min(...cards.map((c) => Date.parse(c.created) || Date.now()));
+    return Date.now() - since > 7 * DAY;
+  }
+
+  function renderBanners() {
+    const box = $("#banners");
+    box.replaceChildren();
+    if (loadProblem) box.append(el("div", { class: "banner warn" }, el("p", { text: loadProblem })));
+    if (!storageOk) box.append(el("div", { class: "banner warn" },
+      el("p", { text: "This browser isn't letting the app save. Changes will be lost on reload — export a backup." })));
+    if (needsExportReminder()) {
+      const last = Number(lsGet(EXPORT_KEY));
+      box.append(el("div", { class: "banner" },
+        el("p", { text: last ? `Last backup was ${Math.floor((Date.now() - last) / DAY)} days ago.` : "You haven't exported a backup yet." }),
+        el("button", { class: "btn primary", type: "button", text: "Export", onclick: exportData }),
+        el("button", { class: "x", type: "button", "aria-label": "Dismiss", text: "×", onclick: () => { exportBannerDismissed = true; renderBanners(); } })));
+    }
+  }
+
+  /* =========================================================
+     Rendering: review
+     ========================================================= */
+  function termSize(t) { const n = [...t].length; return n <= 14 ? "s1" : n <= 28 ? "s2" : n <= 60 ? "s3" : "s4"; }
+
+  /** Direction of the first strong character, so a field's label lines up with its text. */
+  function textDir(s) {
+    const m = String(s).match(/[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]|[֐-׿؀-ۿיִ-﷿ﹰ-﻿]/);
+    return m && /[^\x00-ӿ]/.test(m[0]) ? "rtl" : "ltr";
+  }
+
+  function tagChips(tags) {
+    return tags.length ? el("div", { class: "tags", dir: textDir(tags[0]) }, tags.map((t) => el("span", { class: "tag", dir: "auto", text: t }))) : null;
+  }
+
+  function field(label, value, cls) {
+    if (!value) return null;
+    return el("div", { class: "field", dir: textDir(value) },
+      el("span", { class: "label", text: label }),
+      el("p", { class: "value " + cls, dir: "auto", text: value }));
+  }
+
+  let shownId = null; // card currently on screen; a different card always starts face-up
+
+  function setReviewCategory(cat) {
+    session.category = cat;
+    session.celebrated = false;
+    lsSet(REVIEW_CAT_KEY, cat == null ? "" : cat);
+    flipped = false;
+    renderReview();
+  }
+
+  function renderReview() {
+    syncQueue();
+    // Chips show how many cards are left to review in each category.
+    const left = (cat) => session.queue.filter((id) => { const c = byId(id); return c && inCategory(c, cat); }).length;
+    categoryChips($("#reviewFilter"), session.category, left, setReviewCategory);
+
+    const area = $("#reviewArea");
+    const { queue, done, current: card } = sessionView();
+    const remaining = queue.length;
+
+    if (!card) {
+      shownId = null;
+      area.replaceChildren(renderEmpty(done));
+      return;
+    }
+
+    if (card.id !== shownId) { flipped = false; shownId = card.id; }
+    const total = done + remaining;
+    const pct = total ? (done / total) * 100 : 0;
+    const relearn = session.relearn.has(card.id);
+
+    const backInner = el("div", { class: "inner" },
+      el("p", { class: "back-term", dir: "auto", text: card.term }),
+      field("Meaning", card.meaning, "meaning"),
+      field("Example", card.example, "example"),
+      field("Origin", card.origin, "origin"),
+      !card.meaning && !card.example && !card.origin ? el("p", { class: "value origin", text: "No details yet — add some from the Library." }) : null,
+      tagChips(card.tags));
+
+    const cardEl = el("div", {
+      class: "card" + (flipped ? " flipped" : ""), id: "card", role: "button", tabindex: "0",
+      "aria-label": flipped ? "Card back. Press Space to flip" : "Card front. Press Space to reveal",
+      onclick: (e) => { if (!window.getSelection().toString()) flip(); },
+    },
+      el("div", { class: "card-inner" },
+        el("div", { class: "face front" + (card.category ? " has-cat" : "") },
+          catPill(card.category),
+          el("div", { class: "inner" },
+            el("p", { class: "term " + termSize(card.term), dir: "auto", text: card.term }),
+            relearn ? el("div", { class: "tags" }, el("span", { class: "tag", text: "again" })) : null),
+          el("div", { class: "hint", text: "Tap or press Space to reveal" })),
+        el("div", { class: "face back" }, backInner)));
+
+    const labels = relearn
+      ? { forgot: "again", hard: "tomorrow", easy: "tomorrow" }
+      : Object.fromEntries(RATINGS.map((r) => [r, intervalLabel(nextState(card, r).interval)]));
+
+    const ratings = el("div", { class: "ratings" + (flipped ? "" : " hidden"), id: "ratings", "aria-hidden": flipped ? "false" : "true" },
+      RATINGS.map((r, i) => el("button", { class: "rate " + r, type: "button", tabindex: flipped ? "0" : "-1", onclick: () => rate(r) },
+        el("span", { text: r[0].toUpperCase() + r.slice(1) }),
+        el("small", { text: labels[r] }),
+        el("kbd", { text: String(i + 1) }))));
+
+    area.replaceChildren(
+      el("div", { class: "progress", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(total), "aria-valuenow": String(done) },
+        el("i", { style: `width:${pct}%` })),
+      el("div", { class: "progress-label" },
+        el("span", { text: `${done} done` }),
+        el("span", { text: `${remaining} left` })),
+      el("div", { class: "stage" }, cardEl),
+      ratings,
+      el("p", { class: "keys-hint", text: "Space to flip · 1 Forgot · 2 Hard · 3 Easy" }));
+  }
+
+  function categoryName(cat) { return cat === UNCATEGORIZED ? "Uncategorized" : cat; }
+
+  function renderEmpty(done) {
+    const cat = session.category;
+    const leftElsewhere = cat ? session.queue.length : 0;
+    // Offer to keep going with the other categories when the filtered one is finished.
+    const reviewAll = leftElsewhere
+      ? el("button", { class: "btn primary", type: "button", text: `Review all (${leftElsewhere} left)`, onclick: () => setReviewCategory(null) })
+      : null;
+
+    if (done > 0) {
+      if (!session.celebrated) { session.celebrated = true; sound("complete"); }
+      return el("div", { class: "empty celebrate" },
+        el("div", { class: "big", text: "🎉" }),
+        // English sentence with the (possibly Hebrew) name isolated, so punctuation stays put.
+        el("h2", {}, cat ? [el("bdi", { text: categoryName(cat) }), ": all done"] : "All done for today"),
+        el("p", { text: `You reviewed ${done} card${done === 1 ? "" : "s"}. ${upcomingText(cat)}` }),
+        el("div", { class: "row", style: "justify-content:center" }, reviewAll, el("a", { class: "btn", href: "#add", text: "Add more cards" })));
+    }
+    const first = !cards.length;
+    return el("div", { class: "empty" },
+      el("div", { class: "big", text: first ? "🌱" : "☕" }),
+      el("h2", {}, cat ? ["Nothing due in ", el("bdi", { text: categoryName(cat) })] : "Nothing due"),
+      el("p", { text: first ? "Add a word you came across, or paste cards from a Claude chat." : upcomingText(cat) }),
+      el("div", { class: "row", style: "justify-content:center" }, reviewAll,
+        el("a", { class: "btn" + (reviewAll ? "" : " primary"), href: "#add", text: first ? "Add your first card" : "Add cards" })));
+  }
+
+  function upcomingText(cat) {
+    const future = cards.filter((c) => !isDue(c) && inCategory(c, cat)).map((c) => daysFromToday(c.due));
+    if (!future.length) return "";
+    const soonest = Math.min(...future);
+    const n = future.filter((d) => d === soonest).length;
+    return `Next: ${n} card${n === 1 ? "" : "s"} ${soonest === 1 ? "tomorrow" : `in ${soonest} days`}.`;
+  }
+
+  function flip() {
+    if (busy || !sessionView().current) return;
+    flipped = !flipped;
+    sound("flip");
+    const card = $("#card"), ratings = $("#ratings");
+    if (!card) return;
+    card.classList.toggle("flipped", flipped);
+    card.setAttribute("aria-label", flipped ? "Card back. Press Space to flip" : "Card front. Press Space to reveal");
+    ratings.classList.toggle("hidden", !flipped);
+    ratings.setAttribute("aria-hidden", String(!flipped));
+    ratings.querySelectorAll("button").forEach((b) => (b.tabIndex = flipped ? 0 : -1));
+  }
+
+  let busy = false;
+  function advance() {
+    const cardEl = $("#card");
+    busy = true;
+    if (cardEl) cardEl.classList.add("leaving");
+    setTimeout(() => {
+      flipped = false;
+      busy = false;
+      renderReview();
+      renderCounts();
+      const next = $("#card");
+      if (next) { next.classList.add("entering"); next.focus({ preventScroll: true }); }
+    }, 220);
+  }
+
+  /* =========================================================
+     Add
+     ========================================================= */
+  const SAMPLE = `[
+  {
+    "term": "ephemeral",
+    "meaning": "lasting a very short time",
+    "example": "Fame on social media is ephemeral.",
+    "origin": "Greek ephēmeros, 'lasting a day'",
+    "category": "English words",
+    "tags": ["english"]
+  }
+]`;
+
+  function claudePrompt() {
+    const cats = allCategories();
+    return `When I give you a word, term or idea, reply with ONLY a JSON array of flashcards for my Daily Memory app, in this schema:
+[
+  {
+    "term": "the word or term (front of the card)",
+    "meaning": "a short, clear meaning",
+    "example": "one natural example sentence",
+    "origin": "etymology, or where I came across it",
+    "category": "one category for the card",
+    "tags": ["optional", "extra labels"]
+  }
+]
+"term" is required; the rest are optional. Hebrew is fine in any field — answer in the same language as the term. ${
+  cats.length
+    ? `For "category", use one of my existing categories when it fits: ${cats.map((c) => `"${c}"`).join(", ")}. Only suggest a new one if none fits.`
+    : `For "category", pick a short, broad name (for example "English words", "Hebrew expressions" or "Ideas").`
+} Put the JSON in a single code block.`;
+  }
+
+  function showMsg(node, kind, text) {
+    node.className = "msg show " + kind;
+    node.textContent = text;
+  }
+
+  /** Add new cards; skip ids that already exist and exact duplicates. */
+  function addCards(incoming) {
+    const ids = new Set(cards.map((c) => c.id));
+    const keys = new Set(cards.map((c) => (c.term + "\u0000" + c.meaning).toLowerCase()));
+    let added = 0, dup = 0;
+    for (const c of incoming) {
+      const key = (c.term + "\u0000" + c.meaning).toLowerCase();
+      if (ids.has(c.id) || keys.has(key)) { dup++; continue; }
+      c.category = canonicalCategory(c.category);
+      ids.add(c.id); keys.add(key); cards.push(c); added++;
+    }
+    if (added) { save(); sound("added"); syncQueue(); renderCategoryList(); }
+    return { added, dup };
+  }
+
+  function onAddJson() {
+    const box = $("#importText"), msg = $("#importMsg");
+    const text = box.value.trim();
+    if (!text) { showMsg(msg, "err", "Paste some JSON first."); return; }
+    let result;
+    try { result = extractCards(parseLoose(text)); }
+    catch (e) { showMsg(msg, "err", "That isn't valid JSON: " + e.message); return; }
+    if (!result.cards.length) { showMsg(msg, "err", "No valid cards found. Each card needs a \"term\"."); return; }
+    const { added, dup } = addCards(result.cards);
+    const extra = [dup && `${dup} already in your library`, result.skipped && `${result.skipped} invalid`].filter(Boolean).join(", ");
+    if (!added) { showMsg(msg, "err", `Nothing new to add (${extra}).`); return; }
+    showMsg(msg, "ok", `Added ${added} card${added === 1 ? "" : "s"}${extra ? ` (skipped: ${extra})` : ""}. They're ready in Review.`);
+    box.value = "";
+  }
+
+  function onQuickAdd(e) {
+    e.preventDefault();
+    const msg = $("#quickMsg");
+    const c = normalizeCard({
+      term: $("#qTerm").value, meaning: $("#qMeaning").value, category: $("#qCategory").value,
+      example: $("#qExample").value, origin: $("#qOrigin").value, tags: $("#qTags").value,
+    });
+    if (!c) { showMsg(msg, "err", "A term is required."); return; }
+    const { added } = addCards([c]);
+    if (!added) { showMsg(msg, "err", "That card is already in your library."); return; }
+    showMsg(msg, "ok", `Added “${iso(c.term)}”${c.category ? ` to ${iso(c.category)}` : ""}.`);
+    // Clear the card fields but keep the category, so adding a run of words to one category is quick.
+    for (const id of ["#qTerm", "#qMeaning", "#qExample", "#qOrigin", "#qTags"]) $(id).value = "";
+    $("#qCategory").value = c.category;
+    renderCategoryList();
+    $("#qTerm").focus();
+  }
+
+  async function copyPrompt() {
+    const text = claudePrompt();
+    try { await navigator.clipboard.writeText(text); toast("Prompt copied — paste it into a Claude chat"); }
+    catch {
+      const ta = el("textarea", { readonly: true, style: "min-height:220px" }); ta.value = text;
+      openDialog({ title: "Prompt for Claude", body: [el("p", { text: "Copy this into a Claude chat:" }), ta], actions: [{ label: "Close", kind: "primary" }] });
+      ta.select();
+    }
+  }
+
+  /* =========================================================
+     Library
+     ========================================================= */
+  const lib = { query: "", cat: null };
+
+  const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  const ICON_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>';
+
+  function dueLabel(c) {
+    const d = daysFromToday(c.due);
+    return d <= 0 ? "due now" : d === 1 ? "tomorrow" : `in ${d} days`;
+  }
+
+  function renderLibrary() {
+    // category filter chips (with card counts)
+    if (lib.cat && lib.cat !== UNCATEGORIZED && !allCategories().includes(lib.cat)) lib.cat = null;
+    if (lib.cat === UNCATEGORIZED && !cards.some((c) => !c.category)) lib.cat = null;
+    const count = (cat) => cards.filter((c) => inCategory(c, cat)).length;
+    const box = $("#catFilter");
+    categoryChips(box, lib.cat, count, (cat) => { lib.cat = cat; renderLibrary(); });
+    if (lib.cat && lib.cat !== UNCATEGORIZED) {
+      box.append(el("button", { type: "button", class: "rename", title: "Rename this category", text: "Rename…", onclick: () => renameCategory(lib.cat) }));
+    }
+
+    // Fold case, niqqud and accents so "שגרה" finds "שִׁגְרָה" and "ephemeros" finds "ephēmeros".
+    const fold = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    const q = fold(lib.query.trim());
+    const hit = (c) => !q || [c.term, c.meaning, c.category, ...c.tags].some((s) => fold(s).includes(q));
+    const shown = cards
+      .filter((c) => hit(c) && inCategory(c, lib.cat))
+      .sort((a, b) => a.due - b.due || a.term.localeCompare(b.term));
+
+    $("#libMeta").textContent = cards.length
+      ? (shown.length === cards.length ? `${cards.length} card${cards.length === 1 ? "" : "s"}, soonest due first` : `${shown.length} of ${cards.length} cards`)
+      : "";
+
+    const list = $("#list");
+    if (!cards.length) {
+      list.replaceChildren(el("div", { class: "lib-empty" }, el("p", { text: "Your library is empty." }), el("a", { class: "btn primary", href: "#add", text: "Add cards" })));
+      return;
+    }
+    if (!shown.length) { list.replaceChildren(el("div", { class: "lib-empty", text: "No cards match." })); return; }
+
+    list.replaceChildren(...shown.map((c) => el("article", { class: "item" },
+      el("div", {},
+        el("p", { class: "t", dir: "auto", text: c.term }),
+        c.meaning ? el("p", { class: "m", dir: "auto", text: c.meaning }) : null),
+      el("div", { class: "side" },
+        el("span", { class: "due" + (isDue(c) ? " now" : ""), text: dueLabel(c) }),
+        el("div", { class: "acts" },
+          el("button", { class: "mini", type: "button", "aria-label": "Edit " + c.term, title: "Edit", html: ICON_EDIT, onclick: () => editCard(c.id) }),
+          el("button", { class: "mini del", type: "button", "aria-label": "Delete " + c.term, title: "Delete", html: ICON_DEL, onclick: () => deleteCard(c.id) }))),
+      c.category || c.tags.length
+        ? el("div", { class: "tags" }, catPill(c.category), c.tags.map((t) => el("span", { class: "tag", dir: "auto", text: t })))
+        : null)));
+  }
+
+  function renameCategory(oldName) {
+    const f = el("input", { type: "text", dir: "auto", list: "categoryList" });
+    f.value = oldName;
+    const err = el("div", { class: "msg" });
+    const n = cards.filter((c) => c.category === oldName).length;
+    openDialog({
+      title: "Rename category",
+      body: [el("p", { text: `Renames it on all ${n} card${n === 1 ? "" : "s"}. Using another category's name merges the two.` }),
+        el("div", { class: "form-grid" }, el("label", { text: "New name" }, f)), err],
+      actions: [
+        { label: "Cancel" },
+        { label: "Rename", kind: "primary", run: () => {
+          const others = allCategories().filter((c) => c !== oldName);
+          const typed = str(f.value).replace(/\s+/g, " ");
+          if (!typed) { showMsg(err, "err", "A name is required."); return false; }
+          const name = others.find((c) => c.toLowerCase() === typed.toLowerCase()) || typed;
+          for (const c of cards) if (c.category === oldName) c.category = name;
+          if (lib.cat === oldName) lib.cat = name;
+          if (session.category === oldName) { session.category = name; lsSet(REVIEW_CAT_KEY, name); }
+          save(); renderLibrary(); toast(`Renamed to ${iso(name)}`);
+        } },
+      ],
+    });
+  }
+
+  function deleteCard(id) {
+    const c = byId(id);
+    if (!c) return;
+    const name = el("strong", { dir: "auto", text: c.term });
+    openDialog({
+      title: "Delete card?",
+      body: [el("p", {}, "This removes ", el("bdi", {}, name), " and its review history.")],
+      actions: [
+        { label: "Cancel" },
+        { label: "Delete", kind: "danger", run: () => {
+          cards = cards.filter((x) => x.id !== id);
+          save(); renderLibrary(); toast("Card deleted");
+        } },
+      ],
+    });
+  }
+
+  function editCard(id) {
+    const c = byId(id);
+    if (!c) return;
+    const input = (label, val, area, list) => {
+      const f = area ? el("textarea", { dir: "auto", style: "min-height:80px;font-family:inherit" }) : el("input", { type: "text", dir: "auto", list });
+      f.value = val;
+      return [el("label", { text: label }, f), f];
+    };
+    const [lT, fT] = input("Term", c.term);
+    const [lM, fM] = input("Meaning", c.meaning, true);
+    const [lC, fC] = input("Category", c.category, false, "categoryList");
+    const [lE, fE] = input("Example", c.example, true);
+    const [lO, fO] = input("Origin", c.origin);
+    const [lG, fG] = input("Tags (comma separated)", c.tags.join(", "));
+    const err = el("div", { class: "msg" });
+    openDialog({
+      title: "Edit card",
+      body: [el("div", { class: "form-grid" }, lT, lM, lC, lE, lO, lG), err],
+      actions: [
+        { label: "Cancel" },
+        { label: "Save", kind: "primary", run: () => {
+          const term = fT.value.trim();
+          if (!term) { showMsg(err, "err", "A term is required."); return false; }
+          Object.assign(c, { term, meaning: fM.value.trim(), category: canonicalCategory(fC.value), example: fE.value.trim(), origin: fO.value.trim(), tags: normTags(fG.value) });
+          save(); renderLibrary(); toast("Saved");
+        } },
+      ],
+    });
+  }
+
+  /* =========================================================
+     Export / restore
+     ========================================================= */
+  function exportData() {
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const blob = new Blob([JSON.stringify(storeObject(), null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = el("a", { href: url, download: `daily-memory-${stamp}.json` });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    lsSet(EXPORT_KEY, String(Date.now()));
+    renderBanners(); renderBackupSub();
+    toast(`Exported ${cards.length} card${cards.length === 1 ? "" : "s"}`);
+  }
+
+  function renderBackupSub() {
+    const last = Number(lsGet(EXPORT_KEY));
+    $("#backupSub").textContent = "Your cards live in this browser only. " +
+      (last ? `Last export: ${new Date(last).toLocaleDateString()}.` : "You haven't exported yet.");
+  }
+
+  async function onRestoreFile(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    let result;
+    try {
+      const data = JSON.parse(await file.text());
+      result = extractCards(data);
+      if (!result.cards.length) throw new Error("it contains no valid cards");
+    } catch (err) {
+      openDialog({ title: "Can't restore this file", body: [el("p", { text: `“${file.name}” isn't a valid backup: ${err.message}. Your current cards were not changed.` })], actions: [{ label: "OK", kind: "primary" }] });
+      return;
+    }
+    const n = result.cards.length;
+    const body = [el("p", { text: `“${file.name}” has ${n} card${n === 1 ? "" : "s"}${result.skipped ? ` (${result.skipped} invalid entries ignored)` : ""}. You currently have ${cards.length}.` }),
+      el("p", { text: "Replace swaps your current cards for the backup. Merge keeps both, matching cards by id and keeping whichever was reviewed more recently." })];
+    openDialog({
+      title: "Restore backup?",
+      body,
+      actions: [
+        { label: "Cancel" },
+        { label: "Merge", run: () => applyRestore(result.cards, "merge") },
+        { label: "Replace", kind: "danger", run: () => applyRestore(result.cards, "replace") },
+      ],
+    });
+  }
+
+  function applyRestore(incoming, mode) {
+    if (mode === "replace") cards = incoming;
+    else {
+      const map = new Map(cards.map((c) => [c.id, c]));
+      for (const c of incoming) {
+        const cur = map.get(c.id);
+        const t = (x) => (x && x.lastReviewed ? Date.parse(x.lastReviewed) : 0);
+        if (!cur || t(c) > t(cur)) map.set(c.id, c);
+      }
+      cards = [...map.values()];
+    }
+    loadProblem = null;
+    resetSession(); flipped = false;
+    save(); renderBanners(); render();
+    toast(mode === "replace" ? `Restored ${cards.length} cards` : `Merged — ${cards.length} cards now`);
+  }
+
+  /* =========================================================
+     Dialog & toast
+     ========================================================= */
+  function openDialog({ title, body, actions }) {
+    const dlg = $("#dialog");
+    $("#dTitle").textContent = title;
+    $("#dBody").replaceChildren(...body);
+    $("#dActions").replaceChildren(...actions.map((a) => el("button", {
+      class: "btn" + (a.kind ? " " + a.kind : ""), type: "button", text: a.label,
+      onclick: () => { if (a.run && a.run() === false) return; dlg.close(); },
+    })));
+    dlg.showModal();
+    const focusTarget = dlg.querySelector("input, textarea") || dlg.querySelector(".d-actions .btn:last-child");
+    if (focusTarget) focusTarget.focus();
+  }
+
+  let toastTimer;
+  function toast(text) {
+    const t = $("#toast");
+    t.textContent = text; t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  /* =========================================================
+     Sound (Web Audio, created on first gesture)
+     ========================================================= */
+  let ctx = null;
+  let muted = lsGet(MUTE_KEY) === "1";
+
+  function ensureAudio() {
+    if (ctx || muted) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { try { ctx = new AC(); } catch { ctx = null; } }
+  }
+
+  function tone(freq, start, dur, { type = "sine", gain = 0.12 } = {}) {
+    const t0 = ctx.currentTime + start;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.05);
+  }
+
+  const SOUNDS = {
+    flip: () => tone(1250, 0, 0.06, { type: "triangle", gain: 0.07 }),
+    forgot: () => { tone(392, 0, 0.22, { gain: 0.1 }); tone(294, 0.13, 0.32, { gain: 0.1 }); },
+    hard: () => { tone(440, 0, 0.16, { type: "triangle", gain: 0.08 }); tone(440, 0.12, 0.22, { type: "triangle", gain: 0.07 }); },
+    easy: () => [523.25, 659.25, 783.99].forEach((f, i) => tone(f, i * 0.07, 0.3, { gain: 0.09 })),
+    complete: () => [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, i * 0.11, i === 3 ? 0.9 : 0.4, { gain: 0.1 })),
+    added: () => { tone(880, 0, 0.25, { gain: 0.07 }); tone(1318.5, 0.09, 0.4, { gain: 0.06 }); },
+  };
+
+  function sound(name) {
+    if (muted) return;
+    ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+    try { SOUNDS[name] && SOUNDS[name](); } catch { /* ignore audio errors */ }
+  }
+
+  const ICON_SOUND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>';
+  const ICON_MUTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>';
+
+  function renderMute() {
+    const b = $("#muteBtn");
+    b.innerHTML = muted ? ICON_MUTE : ICON_SOUND;
+    b.setAttribute("aria-label", muted ? "Unmute sounds" : "Mute sounds");
+    b.setAttribute("aria-pressed", String(muted));
+    b.style.color = muted ? "var(--faint)" : "var(--accent-2)";
+  }
+
+  /* =========================================================
+     Routing & events
+     ========================================================= */
+  const VIEWS = ["review", "add", "library"];
+  let view = "review";
+
+  function render() {
+    renderCounts();
+    if (view === "review") renderReview();
+    if (view === "library") renderLibrary();
+  }
+
+  function route() {
+    const v = location.hash.slice(1);
+    view = VIEWS.includes(v) ? v : "review";
+    document.querySelectorAll(".view").forEach((s) => s.classList.toggle("active", s.id === "view-" + view));
+    document.querySelectorAll("nav.tabs a").forEach((a) => { if (a.dataset.view === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    render();
+  }
+
+  function isTyping(e) {
+    const t = e.target;
+    return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (view !== "review" || isTyping(e) || $("#dialog").open || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.code === "Space" || e.key === " ") {
+      if (e.target.tagName === "BUTTON" && e.target.id !== "card" && !e.target.classList.contains("rate")) return;
+      e.preventDefault(); flip();
+    } else if (flipped && ["1", "2", "3"].includes(e.key)) {
+      e.preventDefault(); rate(RATINGS[Number(e.key) - 1]);
+    } else if (e.key === "Enter" && e.target.id === "card") {
+      e.preventDefault(); flip();
+    }
+  });
+
+  // Unlock audio on the first gesture (spec: create AudioContext only then).
+  const unlock = () => { ensureAudio(); if (ctx && ctx.state === "suspended") ctx.resume(); };
+  window.addEventListener("pointerdown", unlock, { once: true, capture: true });
+  window.addEventListener("keydown", unlock, { once: true, capture: true });
+
+  // Keep several tabs in sync.
+  window.addEventListener("storage", (e) => {
+    if (e.key !== STORE_KEY) return;
+    load(); render();
+  });
+
+  // Re-check the day when the app comes back into view (e.g. left open overnight).
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { renderBanners(); render(); } });
+
+  window.addEventListener("hashchange", route);
+  $("#addJsonBtn").addEventListener("click", onAddJson);
+  $("#importText").addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") onAddJson(); });
+  $("#copyPromptBtn").addEventListener("click", copyPrompt);
+  $("#quickForm").addEventListener("submit", onQuickAdd);
+  $("#search").addEventListener("input", (e) => { lib.query = e.target.value; renderLibrary(); });
+  $("#exportBtn").addEventListener("click", exportData);
+  $("#restoreBtn").addEventListener("click", () => $("#restoreFile").click());
+  $("#restoreFile").addEventListener("change", onRestoreFile);
+  $("#muteBtn").addEventListener("click", () => {
+    muted = !muted; lsSet(MUTE_KEY, muted ? "1" : "0"); renderMute();
+    if (!muted) sound("flip");
+  });
+
+  /* =========================================================
+     Boot
+     ========================================================= */
+  $("#importText").placeholder = SAMPLE;
+  $("#qCategory").addEventListener("input", renderCategoryList);
+  $("#qMeaning").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#quickForm").requestSubmit(); }
+  });
+  load();
+  session.category = lsGet(REVIEW_CAT_KEY) || null;
+  renderCategoryList();
+  renderMute();
+  renderBanners();
+  renderBackupSub();
+  route();
+
+  // Small hook for programmatic access & testing.
+  window.dailyMemory = { get cards() { return cards; }, nextState, store: storeObject };
+})();
+</script>
+</body>
+</html>
