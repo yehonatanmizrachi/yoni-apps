@@ -176,7 +176,28 @@
   .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; color: var(--faint); font-size: 0.8rem; pointer-events: none; }
   .face.front .tags { justify-content: center; margin-top: 16px; }
 
-  .back-term { color: var(--accent-2); font-weight: 600; font-size: 1.05rem; margin: 0 0 14px; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+  .back-term { color: var(--accent-2); font-weight: 600; font-size: 1.05rem; margin: 0; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+  .back-head { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; }
+  .back-head .back-term { flex: 0 1 auto; min-width: 0; }
+
+  /* Read-aloud buttons */
+  .speak {
+    width: 38px; height: 38px; flex: none; border-radius: 50%; display: inline-grid; place-items: center;
+    border: 1px solid var(--border); background: rgba(255,255,255,0.06); color: var(--muted);
+    transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.1s;
+  }
+  .speak:hover { color: var(--accent-2); border-color: rgba(79,209,197,0.5); background: rgba(79,209,197,0.1); }
+  .speak:active { transform: scale(0.92); }
+  .speak svg { width: 18px; height: 18px; }
+  .speak.sm { width: 28px; height: 28px; }
+  .speak.sm svg { width: 14px; height: 14px; }
+  .speak.speaking { color: var(--accent-2); border-color: rgba(79,209,197,0.7); animation: speakPulse 1s ease-in-out infinite; }
+  @keyframes speakPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(79,209,197,0.45); } 50% { box-shadow: 0 0 0 7px rgba(79,209,197,0); } }
+  .face.front > .speak { position: absolute; top: 14px; right: 14px; z-index: 1; }
+  .field .label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .field .label-row .label { margin: 0; }
+  .item .t-row { display: flex; align-items: center; gap: 6px; }
+  .item .t-row .t { min-width: 0; }
   .field { margin: 0 0 16px; }
   .field:last-child { margin-bottom: 0; }
   .label { display: block; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin-bottom: 4px; font-weight: 500; }
@@ -194,7 +215,7 @@
     color: hsl(var(--h) 90% 80%); background: hsl(var(--h) 70% 60% / 0.16); border: 1px solid hsl(var(--h) 70% 65% / 0.4);
   }
   .face.front.has-cat { padding-top: 54px; }
-  .face.front .cat { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 40px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .face.front .cat { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 130px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* Filter chip rows (Review and Library) */
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
@@ -830,10 +851,10 @@
     return tags.length ? el("div", { class: "tags", dir: textDir(tags[0]) }, tags.map((t) => el("span", { class: "tag", dir: "auto", text: t }))) : null;
   }
 
-  function field(label, value, cls) {
+  function field(label, value, cls, extra) {
     if (!value) return null;
     return el("div", { class: "field", dir: textDir(value) },
-      el("span", { class: "label", text: label }),
+      extra ? el("div", { class: "label-row" }, el("span", { class: "label", text: label }), extra) : el("span", { class: "label", text: label }),
       el("p", { class: "value " + cls, dir: "auto", text: value }));
   }
 
@@ -869,9 +890,11 @@
     const relearn = session.relearn.has(card.id);
 
     const backInner = el("div", { class: "inner" },
-      el("p", { class: "back-term", dir: "auto", text: card.term }),
+      el("div", { class: "back-head", dir: textDir(card.term) },
+        el("p", { class: "back-term", dir: "auto", text: card.term }),
+        speakButton(card.term, { small: true })),
       field("Meaning", card.meaning, "meaning"),
-      field("Example", card.example, "example"),
+      field("Example", card.example, "example", speakButton(card.example, { small: true, label: "Read the example aloud" })),
       field("Origin", card.origin, "origin"),
       !card.meaning && !card.example && !card.origin ? el("p", { class: "value origin", text: "No details yet — add some from the Library." }) : null,
       tagChips(card.tags));
@@ -884,6 +907,7 @@
       el("div", { class: "card-inner" },
         el("div", { class: "face front" + (card.category ? " has-cat" : "") },
           catPill(card.category),
+          speakButton(card.term),
           el("div", { class: "inner" },
             el("p", { class: "term " + termSize(card.term), dir: "auto", text: card.term }),
             relearn ? el("div", { class: "tags" }, el("span", { class: "tag", text: "again" })) : null),
@@ -911,7 +935,7 @@
         el("span", { text: `${remaining} left` })),
       el("div", { class: "stage" }, cardEl),
       ratings,
-      el("p", { class: "keys-hint", text: "Space to flip · 1 Forgot · 2 Hard · 3 Easy · A Archive" }));
+      el("p", { class: "keys-hint", text: "Space to flip · 1 Forgot · 2 Hard · 3 Easy · A Archive" + (speakButton(card.term) ? " · S Say it" : "") }));
   }
 
   function categoryName(cat) { return cat === UNCATEGORIZED ? "Uncategorized" : cat; }
@@ -969,6 +993,7 @@
   function advance() {
     const cardEl = $("#card");
     busy = true;
+    speech.stop();
     if (cardEl) cardEl.classList.add("leaving");
     setTimeout(() => {
       flipped = false;
@@ -1160,7 +1185,9 @@
 
     list.replaceChildren(...shown.map((c) => el("article", { class: "item" + (c.archived ? " is-archived" : "") },
       el("div", {},
-        el("p", { class: "t", dir: "auto", text: c.term }),
+        el("div", { class: "t-row", dir: textDir(c.term) },
+          el("p", { class: "t", dir: "auto", text: c.term }),
+          speakButton(c.term, { small: true })),
         c.meaning ? el("p", { class: "m", dir: "auto", text: c.meaning }) : null),
       el("div", { class: "side" },
         c.archived
@@ -1347,6 +1374,65 @@
   /* =========================================================
      Sound (Web Audio, created on first gesture)
      ========================================================= */
+  /* =========================================================
+     Read aloud (Web Speech API, built into the browser; works offline
+     with the system's own voices). Only English text gets a button.
+     ========================================================= */
+  const speech = (() => {
+    const synth = window.speechSynthesis;
+    const supported = !!(synth && window.SpeechSynthesisUtterance);
+    let voice = null, activeBtn = null;
+
+    function pickVoice() {
+      const en = synth.getVoices().filter((v) => /^en([-_]|$)/i.test(v.lang));
+      const us = en.filter((v) => /^en[-_]US$/i.test(v.lang));
+      // Prefer the more natural-sounding voices when the system has them.
+      const nice = (list) => list.find((v) => /natural|neural|google|samantha|aria|jenny|guy/i.test(v.name));
+      voice = nice(us) || us.find((v) => v.localService) || us[0] || nice(en) || en[0] || null;
+    }
+    if (supported) {
+      pickVoice();
+      if (synth.addEventListener) synth.addEventListener("voiceschanged", pickVoice);
+      else synth.onvoiceschanged = pickVoice;
+    }
+
+    function clear() { if (activeBtn) activeBtn.classList.remove("speaking"); activeBtn = null; }
+
+    function stop() { if (supported) synth.cancel(); clear(); }
+
+    /** Speak `text`; pressing the same button again while it talks stops it. */
+    function say(text, btn) {
+      if (!supported || !text) return;
+      const again = btn && btn === activeBtn;
+      stop();
+      if (again) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = voice ? voice.lang : "en-US";
+      if (voice) u.voice = voice;
+      u.rate = 0.9;
+      if (btn) { activeBtn = btn; btn.classList.add("speaking"); }
+      u.onend = u.onerror = () => { if (activeBtn === btn) clear(); };
+      synth.speak(u);
+    }
+
+    return { supported, say, stop };
+  })();
+
+  /** English = has Latin letters and no Hebrew or Arabic letters. */
+  const isEnglish = (s) => /[A-Za-z]/.test(s) && !/[֐-׿؀-ۿ]/.test(s);
+
+  const ICON_SPEAK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>';
+
+  /** A speaker button for English text, or null (non-English text, or no speech support). */
+  function speakButton(text, { small = false, label = "Read aloud" } = {}) {
+    if (!speech.supported || !isEnglish(text)) return null;
+    const b = el("button", {
+      class: "speak" + (small ? " sm" : ""), type: "button", title: label + " (S)", "aria-label": `${label}: ${text}`, html: ICON_SPEAK,
+      onclick: (e) => { e.stopPropagation(); speech.say(text, b); },
+    });
+    return b;
+  }
+
   let ctx = null;
   let muted = lsGet(MUTE_KEY) === "1";
 
@@ -1411,6 +1497,7 @@
   function route() {
     const v = location.hash.slice(1);
     view = VIEWS.includes(v) ? v : "review";
+    speech.stop();
     document.querySelectorAll(".view").forEach((s) => s.classList.toggle("active", s.id === "view-" + view));
     document.querySelectorAll("nav.tabs a").forEach((a) => { if (a.dataset.view === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
     render();
@@ -1426,6 +1513,10 @@
     if (e.code === "Space" || e.key === " ") {
       if (e.target.tagName === "BUTTON" && e.target.id !== "card" && !e.target.classList.contains("rate")) return;
       e.preventDefault(); flip();
+    } else if (e.code === "KeyS" || e.key === "s" || e.key === "S") {
+      const card = sessionView().current;
+      const b = $("#card .face.front > .speak");
+      if (card && b) { e.preventDefault(); speech.say(card.term, b); }
     } else if (flipped && (e.key === "a" || e.key === "A" || e.code === "KeyA")) {
       e.preventDefault(); archiveCurrent();
     } else if (flipped && ["1", "2", "3"].includes(e.key)) {
