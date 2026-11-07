@@ -218,11 +218,18 @@
   details.paste[open] > summary { margin-bottom: 10px; }
   .tag { font-size: 0.75rem; padding: 3px 9px; border-radius: 99px; background: rgba(79, 209, 197, 0.12); color: var(--accent-2); border: 1px solid rgba(79, 209, 197, 0.25); overflow-wrap: anywhere; }
 
-  .ratings {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+  .answer { margin-top: 18px; transition: opacity 0.3s ease, transform 0.3s ease; }
+  .answer.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; visibility: hidden; }
+  .ratings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .archive-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px auto 0;
+    background: none; border: 1px dashed var(--border); border-radius: 12px; padding: 8px 14px;
+    color: var(--muted); font-size: 0.85rem; transition: color 0.2s, border-color 0.2s, background 0.2s;
   }
-  .ratings.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; visibility: hidden; }
+  .archive-btn:hover { color: var(--accent-2); border-color: rgba(79,209,197,0.5); background: rgba(79,209,197,0.06); }
+  .archive-btn svg { width: 16px; height: 16px; }
+  .archive-btn kbd { font-family: inherit; font-size: 0.65rem; opacity: 0.55; }
+  @media (hover: none) { .archive-btn kbd { display: none; } }
   .rate {
     border-radius: 16px; padding: 12px 6px 10px; border: 1px solid; display: flex; flex-direction: column; align-items: center; gap: 2px;
     font-weight: 600; transition: transform 0.1s, filter 0.2s, background 0.2s;
@@ -273,6 +280,16 @@
   /* ---------- Library ---------- */
   .lib-tools { display: flex; gap: 10px; margin-bottom: 12px; }
   .lib-tools input { flex: 1; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .seg[hidden] { display: none; }
+  .seg button { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px; border-radius: 10px; border: 0; background: none; color: var(--muted); font-size: 0.9rem; font-weight: 500; transition: background 0.2s, color 0.2s; }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: rgba(255,255,255,0.1); color: var(--text); }
+  .seg button svg { width: 15px; height: 15px; display: block; }
+  .seg .n { opacity: 0.6; font-variant-numeric: tabular-nums; font-size: 0.8rem; }
+  .mini.arch:hover, .mini.restore:hover { color: var(--accent-2); background: rgba(79,209,197,0.12); }
+  .mini.restore { color: var(--accent-2); }
+  .item.is-archived .t { color: #cfcbea; }
   .chips button.rename { border-style: dashed; color: var(--faint); }
   .lib-meta { color: var(--faint); font-size: 0.8rem; margin: 0 0 10px; }
   .list { display: grid; gap: 10px; }
@@ -314,6 +331,10 @@
     font-size: 0.9rem; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; max-width: calc(100vw - 32px);
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.has-action.show { pointer-events: auto; }
+  .toast { display: flex; align-items: center; gap: 14px; }
+  .toast button { background: none; border: 0; padding: 2px 4px; color: var(--accent-2); font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+  .toast button:hover { text-decoration: underline; }
 
   @media (max-width: 480px) {
     .face { padding: 24px 20px; }
@@ -391,6 +412,7 @@
 
   <!-- Library -->
   <section class="view" id="view-library" aria-label="Library">
+    <div class="seg" id="libMode" role="group" aria-label="Library section" hidden></div>
     <div class="lib-tools">
       <input type="search" id="search" placeholder="Search terms and meanings" dir="auto" aria-label="Search">
     </div>
@@ -453,7 +475,8 @@
   /** Local midnight `n` days after `ms` (calendar-safe across DST). */
   function addDays(ms, n) { const d = new Date(ms); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime(); }
   function daysFromToday(ms) { return Math.round((addDays(ms, 0) - todayStart()) / DAY); }
-  function isDue(card) { return card.due <= todayStart(); }
+  /** Archived cards are never due: they leave review until restored. */
+  function isDue(card) { return !card.archived && card.due <= todayStart(); }
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
@@ -503,6 +526,7 @@
       reviews: isNum(raw.reviews) && raw.reviews >= 0 ? raw.reviews : 0,
       lapses: isNum(raw.lapses) && raw.lapses >= 0 ? raw.lapses : 0,
       lastReviewed: isIso(raw.lastReviewed) ? raw.lastReviewed : null,
+      archived: isIso(raw.archived) ? raw.archived : null, // time it was archived; null = active
     };
   }
 
@@ -564,9 +588,13 @@
   const UNCATEGORIZED = "\u0000none"; // filter value for cards without a category
 
   /** Existing categories, most used first. Matching ignores case. */
-  function allCategories() {
+  const activeCards = () => cards.filter((c) => !c.archived);
+  const archivedCards = () => cards.filter((c) => c.archived);
+
+  /** Categories in `list` (default: every card, archived included), most used first. */
+  function allCategories(list = cards) {
     const counts = new Map();
-    for (const c of cards) if (c.category) counts.set(c.category, (counts.get(c.category) || 0) + 1);
+    for (const c of list) if (c.category) counts.set(c.category, (counts.get(c.category) || 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
   }
 
@@ -589,16 +617,16 @@
     return name ? el("span", { class: "cat", dir: "auto", style: `--h:${catHue(name)}`, text: name }) : null;
   }
 
-  /** Chip row: All · each category (with count) · Uncategorized (only if some cards have none). */
-  function categoryChips(container, selected, counts, onPick) {
-    const cats = allCategories();
+  /** Chip row for the cards in `list`: All · each category (with count) · Uncategorized (only if some have none). */
+  function categoryChips(container, list, selected, counts, onPick) {
+    const cats = allCategories(list);
     if (!cats.length) { container.replaceChildren(); container.hidden = true; return; }
     container.hidden = false;
     const chip = (value, label, n) => el("button", {
       type: "button", dir: "auto", "aria-pressed": String(selected === value),
       onclick: () => onPick(selected === value ? null : value),
     }, label, n != null ? el("span", { class: "n", text: String(n) }) : null);
-    const none = cards.filter((c) => !c.category);
+    const none = list.filter((c) => !c.category);
     const buttons = [
       chip(null, "All", counts ? counts(null) : null),
       ...cats.map((c) => chip(c, c, counts ? counts(c) : null)),
@@ -679,8 +707,8 @@
 
   function syncQueue() {
     if (session.day !== todayStart()) resetSession(); // new day: start fresh
-    if (session.category && session.category !== UNCATEGORIZED && !allCategories().includes(session.category)) session.category = null;
-    const ids = new Set(cards.map((c) => c.id));
+    if (session.category && session.category !== UNCATEGORIZED && !allCategories(activeCards()).includes(session.category)) session.category = null;
+    const ids = new Set(activeCards().map((c) => c.id)); // archived or deleted cards leave the queue
     session.queue = session.queue.filter((id) => ids.has(id));
     const inQueue = new Set(session.queue);
     const fresh = shuffle(cards.filter((c) => isDue(c) && !inQueue.has(c.id)).map((c) => c.id));
@@ -719,13 +747,49 @@
     advance();
   }
 
+  /* ---------- Archive ---------- */
+
+  /**
+   * Archive a learned card, or restore one. Archiving keeps the card's history;
+   * restoring brings it back into review today (interval and ease are kept).
+   */
+  function setArchived(id, archive, { quiet = false, onUndo } = {}) {
+    const card = byId(id);
+    if (!card || !!card.archived === archive) return;
+    const prev = { archived: card.archived, due: card.due };
+    if (archive) {
+      card.archived = new Date().toISOString();
+    } else {
+      card.archived = null;
+      card.due = Math.min(card.due, todayStart());
+    }
+    save();
+    if (!quiet) sound(archive ? "archive" : "added");
+    toast(archive ? `Archived “${iso(card.term)}”` : `Restored “${iso(card.term)}” — due today`, {
+      label: "Undo",
+      run: () => { Object.assign(card, prev); if (onUndo) onUndo(); save(); render(); },
+    });
+  }
+
+  /** Archive the card on screen in Review (only after it's been flipped). */
+  function archiveCurrent() {
+    const card = sessionView().current;
+    if (!card || !flipped || busy) return;
+    const id = card.id;
+    session.relearn.delete(id);
+    session.doneIds.push(id);
+    // Undo puts it back in today's session (syncQueue re-adds it because it's due again).
+    setArchived(id, true, { onUndo: () => { session.doneIds = session.doneIds.filter((x) => x !== id); } });
+    advance();
+  }
+
   /* =========================================================
      Rendering: header & banners
      ========================================================= */
   function renderCounts() {
     const due = cards.filter(isDue).length;
     const c = $("#counts");
-    c.replaceChildren(el("b", { text: String(due) }), ` due · ${cards.length} total`);
+    c.replaceChildren(el("b", { text: String(due) }), ` due · ${activeCards().length} cards`);
   }
 
   let exportBannerDismissed = false;
@@ -787,7 +851,7 @@
     syncQueue();
     // Chips show how many cards are left to review in each category.
     const left = (cat) => session.queue.filter((id) => { const c = byId(id); return c && inCategory(c, cat); }).length;
-    categoryChips($("#reviewFilter"), session.category, left, setReviewCategory);
+    categoryChips($("#reviewFilter"), activeCards(), session.category, left, setReviewCategory);
 
     const area = $("#reviewArea");
     const { queue, done, current: card } = sessionView();
@@ -830,11 +894,14 @@
       ? { forgot: "again", hard: "tomorrow", easy: "tomorrow" }
       : Object.fromEntries(RATINGS.map((r) => [r, intervalLabel(nextState(card, r).interval)]));
 
-    const ratings = el("div", { class: "ratings" + (flipped ? "" : " hidden"), id: "ratings", "aria-hidden": flipped ? "false" : "true" },
-      RATINGS.map((r, i) => el("button", { class: "rate " + r, type: "button", tabindex: flipped ? "0" : "-1", onclick: () => rate(r) },
-        el("span", { text: r[0].toUpperCase() + r.slice(1) }),
-        el("small", { text: labels[r] }),
-        el("kbd", { text: String(i + 1) }))));
+    const ratings = el("div", { class: "answer" + (flipped ? "" : " hidden"), id: "ratings", "aria-hidden": flipped ? "false" : "true" },
+      el("div", { class: "ratings" },
+        RATINGS.map((r, i) => el("button", { class: "rate " + r, type: "button", tabindex: flipped ? "0" : "-1", onclick: () => rate(r) },
+          el("span", { text: r[0].toUpperCase() + r.slice(1) }),
+          el("small", { text: labels[r] }),
+          el("kbd", { text: String(i + 1) })))),
+      el("button", { class: "archive-btn", type: "button", tabindex: flipped ? "0" : "-1", title: "Move this card to the Archive (A)", onclick: archiveCurrent, html: ICON_ARCHIVE },
+        "I know this — archive it", el("kbd", { text: "A" })));
 
     area.replaceChildren(
       el("div", { class: "progress", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(total), "aria-valuenow": String(done) },
@@ -844,7 +911,7 @@
         el("span", { text: `${remaining} left` })),
       el("div", { class: "stage" }, cardEl),
       ratings,
-      el("p", { class: "keys-hint", text: "Space to flip · 1 Forgot · 2 Hard · 3 Easy" }));
+      el("p", { class: "keys-hint", text: "Space to flip · 1 Forgot · 2 Hard · 3 Easy · A Archive" }));
   }
 
   function categoryName(cat) { return cat === UNCATEGORIZED ? "Uncategorized" : cat; }
@@ -867,16 +934,18 @@
         el("div", { class: "row", style: "justify-content:center" }, reviewAll, el("a", { class: "btn", href: "#add", text: "Add more cards" })));
     }
     const first = !cards.length;
+    const allArchived = !first && !activeCards().length;
     return el("div", { class: "empty" },
-      el("div", { class: "big", text: first ? "🌱" : "☕" }),
+      el("div", { class: "big", text: first ? "🌱" : allArchived ? "🏆" : "☕" }),
       el("h2", {}, cat ? ["Nothing due in ", el("bdi", { text: categoryName(cat) })] : "Nothing due"),
-      el("p", { text: first ? "Add a word you came across, or paste cards from a Claude chat." : upcomingText(cat) }),
+      el("p", { text: first ? "Add a word you came across, or paste cards from a Claude chat."
+        : allArchived ? `All ${cards.length} of your cards are in the Archive. Add new ones to keep learning.` : upcomingText(cat) }),
       el("div", { class: "row", style: "justify-content:center" }, reviewAll,
         el("a", { class: "btn" + (reviewAll ? "" : " primary"), href: "#add", text: first ? "Add your first card" : "Add cards" })));
   }
 
   function upcomingText(cat) {
-    const future = cards.filter((c) => !isDue(c) && inCategory(c, cat)).map((c) => daysFromToday(c.due));
+    const future = activeCards().filter((c) => !isDue(c) && inCategory(c, cat)).map((c) => daysFromToday(c.due));
     if (!future.length) return "";
     const soonest = Math.min(...future);
     const n = future.filter((d) => d === soonest).length;
@@ -989,7 +1058,14 @@
     });
     if (!c) { showMsg(msg, "err", "A term is required."); return; }
     const { added } = addCards([c]);
-    if (!added) { showMsg(msg, "err", "That card is already in your library."); return; }
+    if (!added) {
+      const key = (c.term + "\u0000" + c.meaning).toLowerCase();
+      const existing = cards.find((x) => (x.term + "\u0000" + x.meaning).toLowerCase() === key);
+      showMsg(msg, "err", existing && existing.archived
+        ? "That card is in your Archive. Restore it from Library → Archive to study it again."
+        : "That card is already in your library.");
+      return;
+    }
     showMsg(msg, "ok", `Added “${iso(c.term)}”${c.category ? ` to ${iso(c.category)}` : ""}.`);
     // Clear the card fields but keep the category, so adding a run of words to one category is quick.
     for (const id of ["#qTerm", "#qMeaning", "#qExample", "#qOrigin", "#qTags"]) $(id).value = "";
@@ -1011,9 +1087,11 @@
   /* =========================================================
      Library
      ========================================================= */
-  const lib = { query: "", cat: null };
+  const lib = { query: "", cat: null, archive: false };
 
   const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  const ICON_ARCHIVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>';
+  const ICON_RESTORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
   const ICON_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>';
 
   function dueLabel(c) {
@@ -1021,13 +1099,32 @@
     return d <= 0 ? "due now" : d === 1 ? "tomorrow" : `in ${d} days`;
   }
 
+  function setLibMode(archive) {
+    if (lib.archive === archive) return;
+    lib.archive = archive; lib.cat = null;
+    renderLibrary();
+  }
+
   function renderLibrary() {
-    // category filter chips (with card counts)
-    if (lib.cat && lib.cat !== UNCATEGORIZED && !allCategories().includes(lib.cat)) lib.cat = null;
-    if (lib.cat === UNCATEGORIZED && !cards.some((c) => !c.category)) lib.cat = null;
-    const count = (cat) => cards.filter((c) => inCategory(c, cat)).length;
+    const active = activeCards(), archived = archivedCards();
+    if (lib.archive && !archived.length) lib.archive = false;
+    const pool = lib.archive ? archived : active;
+
+    // Cards / Archive switch (only once something has been archived)
+    const mode = $("#libMode");
+    mode.hidden = !archived.length;
+    mode.replaceChildren(
+      el("button", { type: "button", "aria-pressed": String(!lib.archive), onclick: () => setLibMode(false) },
+        "Cards", el("span", { class: "n", text: String(active.length) })),
+      el("button", { type: "button", "aria-pressed": String(lib.archive), onclick: () => setLibMode(true) },
+        el("span", { html: ICON_ARCHIVE }), "Archive", el("span", { class: "n", text: String(archived.length) })));
+
+    // category filter chips (with card counts), for the cards in the current section
+    if (lib.cat && lib.cat !== UNCATEGORIZED && !allCategories(pool).includes(lib.cat)) lib.cat = null;
+    if (lib.cat === UNCATEGORIZED && !pool.some((c) => !c.category)) lib.cat = null;
+    const count = (cat) => pool.filter((c) => inCategory(c, cat)).length;
     const box = $("#catFilter");
-    categoryChips(box, lib.cat, count, (cat) => { lib.cat = cat; renderLibrary(); });
+    categoryChips(box, pool, lib.cat, count, (cat) => { lib.cat = cat; renderLibrary(); });
     if (lib.cat && lib.cat !== UNCATEGORIZED) {
       box.append(el("button", { type: "button", class: "rename", title: "Rename this category", text: "Rename…", onclick: () => renameCategory(lib.cat) }));
     }
@@ -1036,30 +1133,45 @@
     const fold = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
     const q = fold(lib.query.trim());
     const hit = (c) => !q || [c.term, c.meaning, c.category, ...c.tags].some((s) => fold(s).includes(q));
-    const shown = cards
+    const shown = pool
       .filter((c) => hit(c) && inCategory(c, lib.cat))
-      .sort((a, b) => a.due - b.due || a.term.localeCompare(b.term));
+      .sort(lib.archive
+        ? (a, b) => b.archived.localeCompare(a.archived) || a.term.localeCompare(b.term) // newest archived first
+        : (a, b) => a.due - b.due || a.term.localeCompare(b.term));
 
-    $("#libMeta").textContent = cards.length
-      ? (shown.length === cards.length ? `${cards.length} card${cards.length === 1 ? "" : "s"}, soonest due first` : `${shown.length} of ${cards.length} cards`)
+    const noun = lib.archive ? "archived card" : "card";
+    $("#libMeta").textContent = pool.length
+      ? (shown.length === pool.length
+        ? `${pool.length} ${noun}${pool.length === 1 ? "" : "s"}, ${lib.archive ? "most recently archived first" : "soonest due first"}`
+        : `${shown.length} of ${pool.length} ${noun}s`)
       : "";
 
     const list = $("#list");
-    if (!cards.length) {
-      list.replaceChildren(el("div", { class: "lib-empty" }, el("p", { text: "Your library is empty." }), el("a", { class: "btn primary", href: "#add", text: "Add cards" })));
+    if (!pool.length) {
+      list.replaceChildren(el("div", { class: "lib-empty" },
+        el("p", { text: cards.length ? "Every card is in the Archive." : "Your library is empty." }),
+        cards.length ? null : el("a", { class: "btn primary", href: "#add", text: "Add cards" })));
       return;
     }
     if (!shown.length) { list.replaceChildren(el("div", { class: "lib-empty", text: "No cards match." })); return; }
 
-    list.replaceChildren(...shown.map((c) => el("article", { class: "item" },
+    const btn = (cls, label, title, icon, run) =>
+      el("button", { class: "mini " + cls, type: "button", "aria-label": `${label} ${title}`, title: label, html: icon, onclick: run });
+
+    list.replaceChildren(...shown.map((c) => el("article", { class: "item" + (c.archived ? " is-archived" : "") },
       el("div", {},
         el("p", { class: "t", dir: "auto", text: c.term }),
         c.meaning ? el("p", { class: "m", dir: "auto", text: c.meaning }) : null),
       el("div", { class: "side" },
-        el("span", { class: "due" + (isDue(c) ? " now" : ""), text: dueLabel(c) }),
+        c.archived
+          ? el("span", { class: "due", title: new Date(c.archived).toLocaleString(), text: `archived ${new Date(c.archived).toLocaleDateString()}` })
+          : el("span", { class: "due" + (isDue(c) ? " now" : ""), text: dueLabel(c) }),
         el("div", { class: "acts" },
-          el("button", { class: "mini", type: "button", "aria-label": "Edit " + c.term, title: "Edit", html: ICON_EDIT, onclick: () => editCard(c.id) }),
-          el("button", { class: "mini del", type: "button", "aria-label": "Delete " + c.term, title: "Delete", html: ICON_DEL, onclick: () => deleteCard(c.id) }))),
+          c.archived
+            ? btn("restore", "Restore", c.term, ICON_RESTORE, () => { setArchived(c.id, false); renderLibrary(); })
+            : btn("arch", "Archive", c.term, ICON_ARCHIVE, () => { setArchived(c.id, true); renderLibrary(); }),
+          btn("", "Edit", c.term, ICON_EDIT, () => editCard(c.id)),
+          btn("del", "Delete", c.term, ICON_DEL, () => deleteCard(c.id)))),
       c.category || c.tags.length
         ? el("div", { class: "tags" }, catPill(c.category), c.tags.map((t) => el("span", { class: "tag", dir: "auto", text: t })))
         : null)));
@@ -1220,11 +1332,16 @@
   }
 
   let toastTimer;
-  function toast(text) {
+  /** Short message at the bottom; with `action` it gets a button (e.g. Undo) and stays a bit longer. */
+  function toast(text, action) {
     const t = $("#toast");
-    t.textContent = text; t.classList.add("show");
+    const hide = () => t.classList.remove("show");
+    t.replaceChildren(el("span", { text }));
+    if (action) t.append(el("button", { type: "button", text: action.label, onclick: () => { hide(); action.run(); } }));
+    t.classList.toggle("has-action", !!action);
+    t.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+    toastTimer = setTimeout(hide, action ? 5000 : 2200);
   }
 
   /* =========================================================
@@ -1257,6 +1374,7 @@
     easy: () => [523.25, 659.25, 783.99].forEach((f, i) => tone(f, i * 0.07, 0.3, { gain: 0.09 })),
     complete: () => [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, i * 0.11, i === 3 ? 0.9 : 0.4, { gain: 0.1 })),
     added: () => { tone(880, 0, 0.25, { gain: 0.07 }); tone(1318.5, 0.09, 0.4, { gain: 0.06 }); },
+    archive: () => [659.25, 880, 1318.5].forEach((f, i) => tone(f, i * 0.06, 0.35, { type: "triangle", gain: 0.06 })),
   };
 
   function sound(name) {
@@ -1308,6 +1426,8 @@
     if (e.code === "Space" || e.key === " ") {
       if (e.target.tagName === "BUTTON" && e.target.id !== "card" && !e.target.classList.contains("rate")) return;
       e.preventDefault(); flip();
+    } else if (flipped && (e.key === "a" || e.key === "A" || e.code === "KeyA")) {
+      e.preventDefault(); archiveCurrent();
     } else if (flipped && ["1", "2", "3"].includes(e.key)) {
       e.preventDefault(); rate(RATINGS[Number(e.key) - 1]);
     } else if (e.key === "Enter" && e.target.id === "card") {
