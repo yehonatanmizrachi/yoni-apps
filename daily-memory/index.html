@@ -49,6 +49,9 @@
     max-width: 760px;
     margin: 0 auto;
     padding: max(16px, env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+    /* Full-height column, so Review can size the card to whatever room is left (no page scroll). */
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column;
   }
 
   /* ---------- Header ---------- */
@@ -108,6 +111,8 @@
   /* ---------- Views ---------- */
   .view { display: none; }
   .view.active { display: block; animation: fade 0.35s ease; }
+  #view-review.active { flex: 1 0 auto; display: flex; flex-direction: column; }
+  #reviewArea { flex: 1 0 auto; display: flex; flex-direction: column; }
   @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
   /* ---------- Buttons ---------- */
@@ -125,15 +130,17 @@
   .btn.danger { color: var(--red); border-color: rgba(255, 107, 129, 0.4); background: rgba(255, 107, 129, 0.08); }
   .btn.danger:hover { background: rgba(255, 107, 129, 0.16); }
   .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn svg { width: 16px; height: 16px; flex: none; }
 
   /* ---------- Review ---------- */
   .progress { height: 6px; border-radius: 99px; background: var(--surface); overflow: hidden; margin-bottom: 8px; }
   .progress > i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.5s cubic-bezier(.2,.8,.2,1); }
   .progress-label { display: flex; justify-content: space-between; color: var(--faint); font-size: 0.8rem; margin-bottom: 16px; font-variant-numeric: tabular-nums; }
 
-  .stage { perspective: 1600px; }
+  /* The card takes the height left over on screen, between a small minimum and a comfortable maximum. */
+  .stage { perspective: 1600px; display: flex; flex: 1 1 auto; min-height: 200px; max-height: 470px; }
   .card {
-    position: relative; height: clamp(320px, 54vh, 470px); cursor: pointer; border-radius: var(--radius);
+    position: relative; flex: 1; min-width: 0; cursor: pointer; border-radius: var(--radius);
     transition: opacity 0.22s ease, transform 0.22s ease;
     user-select: none; -webkit-user-select: none;
   }
@@ -243,7 +250,7 @@
   .answer.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; visibility: hidden; }
   .ratings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .archive-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px auto 0;
+    display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 0; width: 100%;
     background: none; border: 1px dashed var(--border); border-radius: 12px; padding: 8px 14px;
     color: var(--muted); font-size: 0.85rem; transition: color 0.2s, border-color 0.2s, background 0.2s;
   }
@@ -358,6 +365,19 @@
   .toast button:hover { text-decoration: underline; }
 
   @media (max-width: 480px) {
+    .app { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+    header.top { padding-bottom: 10px; }
+    nav.tabs { margin-bottom: 12px; }
+    nav.tabs a { padding: 8px; }
+    /* Review categories stay on one line and swipe sideways instead of pushing the card down. */
+    #reviewFilter { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px 10px; padding: 0 16px; scrollbar-width: none; }
+    #reviewFilter::-webkit-scrollbar { display: none; }
+    #reviewFilter button { flex: none; white-space: nowrap; }
+    .progress-label { margin-bottom: 10px; }
+    .answer { margin-top: 12px; }
+    .rate { padding: 9px 6px 8px; }
+    .archive-btn { margin-top: 8px; padding: 7px 14px; }
+    .empty { padding: 40px 20px; }
     .face { padding: 24px 20px; }
     .counts { font-size: 0.78rem; }
     h1 { font-size: 1.05rem; }
@@ -715,6 +735,51 @@
   };
   const REVIEW_CAT_KEY = "dailyMemory.reviewCategory";
 
+  /**
+   * What each card's schedule looked like before today's first rating, so the day's
+   * review can be reset ("Review again"). Kept in localStorage so it survives a reload.
+   */
+  const TODAY_KEY = "dailyMemory.today";
+  const SCHEDULE_FIELDS = ["due", "interval", "ease", "lapses", "reviews", "lastReviewed"];
+  let todayLog = { day: todayStart(), prev: {} };
+
+  function loadTodayLog() {
+    todayLog = { day: todayStart(), prev: {} };
+    try {
+      const data = JSON.parse(lsGet(TODAY_KEY) || "null");
+      if (data && data.day === todayLog.day && data.prev && typeof data.prev === "object") todayLog.prev = data.prev;
+    } catch { /* start with an empty log */ }
+  }
+  function saveTodayLog() { lsSet(TODAY_KEY, JSON.stringify(todayLog)); }
+
+  function rememberBeforeReview(card) {
+    if (todayLog.day !== todayStart()) todayLog = { day: todayStart(), prev: {} };
+    if (todayLog.prev[card.id]) return;
+    todayLog.prev[card.id] = Object.fromEntries(SCHEDULE_FIELDS.map((k) => [k, card[k]]));
+    saveTodayLog();
+  }
+
+  /** Cards reviewed today (in the current category filter) that can be put back as not reviewed. */
+  function resettableIds() {
+    if (todayLog.day !== todayStart()) return [];
+    return Object.keys(todayLog.prev).filter((id) => { const c = byId(id); return c && !c.archived && inCategory(c, session.category); });
+  }
+
+  /** Undo today's reviews for those cards: their schedule goes back and they're due again. */
+  function resetReview() {
+    const ids = resettableIds();
+    if (!ids.length) return;
+    const gone = new Set(ids);
+    for (const id of ids) { Object.assign(byId(id), todayLog.prev[id]); delete todayLog.prev[id]; session.relearn.delete(id); }
+    session.queue = session.queue.filter((id) => !gone.has(id));
+    session.doneIds = session.doneIds.filter((id) => !gone.has(id));
+    session.celebrated = false;
+    flipped = false;
+    saveTodayLog(); save(); sound("added");
+    render();
+    toast(`${ids.length} card${ids.length === 1 ? "" : "s"} ready to review again`);
+  }
+
   function resetSession() {
     session.day = todayStart(); session.queue = []; session.relearn.clear(); session.doneIds = []; session.celebrated = false;
   }
@@ -750,6 +815,7 @@
     if (!card || !flipped || busy) return;
     const id = card.id;
     const now = new Date().toISOString();
+    rememberBeforeReview(card);
     sound(rating);
     session.queue.splice(session.queue.indexOf(id), 1);
 
@@ -947,6 +1013,11 @@
     const reviewAll = leftElsewhere
       ? el("button", { class: "btn primary", type: "button", text: `Review all (${leftElsewhere} left)`, onclick: () => setReviewCategory(null) })
       : null;
+    const again = resettableIds().length;
+    const reviewAgain = again
+      ? el("button", { class: "btn" + (reviewAll ? "" : " primary"), type: "button", title: "Put today's reviewed cards back, as if you hadn't reviewed them",
+          html: ICON_RESTORE, onclick: resetReview }, `Review again (${again})`)
+      : null;
 
     if (done > 0) {
       if (!session.celebrated) { session.celebrated = true; sound("complete"); }
@@ -955,7 +1026,7 @@
         // English sentence with the (possibly Hebrew) name isolated, so punctuation stays put.
         el("h2", {}, cat ? [el("bdi", { text: categoryName(cat) }), ": all done"] : "All done for today"),
         el("p", { text: `You reviewed ${done} card${done === 1 ? "" : "s"}. ${upcomingText(cat)}` }),
-        el("div", { class: "row", style: "justify-content:center" }, reviewAll, el("a", { class: "btn", href: "#add", text: "Add more cards" })));
+        el("div", { class: "row", style: "justify-content:center" }, reviewAll, reviewAgain, el("a", { class: "btn", href: "#add", text: "Add more cards" })));
     }
     const first = !cards.length;
     const allArchived = !first && !activeCards().length;
@@ -964,8 +1035,8 @@
       el("h2", {}, cat ? ["Nothing due in ", el("bdi", { text: categoryName(cat) })] : "Nothing due"),
       el("p", { text: first ? "Add a word you came across, or paste cards from a Claude chat."
         : allArchived ? `All ${cards.length} of your cards are in the Archive. Add new ones to keep learning.` : upcomingText(cat) }),
-      el("div", { class: "row", style: "justify-content:center" }, reviewAll,
-        el("a", { class: "btn" + (reviewAll ? "" : " primary"), href: "#add", text: first ? "Add your first card" : "Add cards" })));
+      el("div", { class: "row", style: "justify-content:center" }, reviewAll, reviewAgain,
+        el("a", { class: "btn" + (reviewAll || reviewAgain ? "" : " primary"), href: "#add", text: first ? "Add your first card" : "Add cards" })));
   }
 
   function upcomingText(cat) {
@@ -1533,8 +1604,8 @@
 
   // Keep several tabs in sync.
   window.addEventListener("storage", (e) => {
-    if (e.key !== STORE_KEY) return;
-    load(); render();
+    if (e.key !== STORE_KEY && e.key !== TODAY_KEY) return;
+    load(); loadTodayLog(); render();
   });
 
   // Re-check the day when the app comes back into view (e.g. left open overnight).
@@ -1563,6 +1634,7 @@
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#quickForm").requestSubmit(); }
   });
   load();
+  loadTodayLog();
   session.category = lsGet(REVIEW_CAT_KEY) || null;
   renderCategoryList();
   renderMute();
